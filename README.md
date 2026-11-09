@@ -38,3 +38,15 @@ npm test
 npm run typecheck
 npm run build
 ```
+
+## Docker
+
+The image serves the built app with nginx at `/` on port 8080
+(`/healthz` for health checks). `.github/workflows/docker.yml` publishes
+`ghcr.io/fxi/strata` on each push to `main` (`latest`, commit sha) and on
+`v*` tags (semver).
+
+```bash
+docker compose up --build        # http://localhost:8080/
+docker run -p 8080:8080 ghcr.io/fxi/strata:latest
+```

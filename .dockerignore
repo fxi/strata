@@ -1,0 +1,10 @@
+# Sources only: no installs, builds or local data.
+.git
+.github
+.claude
+.env
+.env.*
+**/.DS_Store
+node_modules
+dist
+dist-*
