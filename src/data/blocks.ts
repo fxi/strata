@@ -6,7 +6,7 @@
  * stay well under 200 MB.
  */
 
-import type { ZarrSource } from "../../lib/ZarrSource";
+import type { ZarrSource } from "@fxi/zartigl/engine";
 import type { Box } from "./box";
 import { depthWeights, interpolate } from "./depth";
 

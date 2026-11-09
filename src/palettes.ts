@@ -4,7 +4,7 @@
  * 2.0); thermal is the catalog's temperature palette (cmocean).
  */
 
-import palettes from "../lib/palettes.json";
+import { getPalettes } from "@fxi/zartigl/engine";
 
 /** Turbo and thermal for the temperature; balance (diverging) for the anomaly. */
 export type PaletteName = "turbo" | "thermal" | "balance";
@@ -64,12 +64,20 @@ function stops(colors: string[]): (t: number) => [number, number, number] {
   };
 }
 
+/** Color stops of a zartigl palette (thermal, balance). */
+function paletteColors(name: PaletteName): string[] {
+  const palette = getPalettes({ includeDeprecated: true }).find(
+    (candidate) => candidate.id === name,
+  );
+  if (!palette) {
+    throw new Error(`Unknown zartigl palette: ${name}`);
+  }
+  return palette.colors;
+}
+
 /** RGBA bytes of a ramp, 256 × 1. */
 export function rampBytes(name: PaletteName): Uint8Array {
-  const color =
-    name === "turbo"
-      ? turbo
-      : stops((palettes as Record<string, { colors: string[] }>)[name].colors);
+  const color = name === "turbo" ? turbo : stops(paletteColors(name));
   const bytes = new Uint8Array(SIZE * 4);
   for (let i = 0; i < SIZE; i++) {
     const [r, g, b] = color(i / (SIZE - 1));

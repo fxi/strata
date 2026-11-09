@@ -1,0 +1,38 @@
+{
+  "name": "@fxi/strata",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Pacific thermocline data cube: monthly GODAS ocean temperature as an interactive 3D volume, read from zartigl's Zarr stores",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/fxi/strata.git"
+  },
+  "type": "module",
+  "author": "fxi",
+  "license": "MIT",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview",
+    "test": "vitest run",
+    "typecheck": "tsc --noEmit -p .",
+    "format": "prettier --write \"**/*.{js,mjs,ts}\"",
+    "format:check": "prettier --check \"**/*.{js,mjs,ts}\""
+  },
+  "dependencies": {
+    "@fontsource/ibm-plex-mono": "^5.3.0",
+    "@fxi/zartigl": "^0.15.0",
+    "d3": "^7.9.0",
+    "topojson-client": "^3.1.0",
+    "world-atlas": "^2.0.2"
+  },
+  "devDependencies": {
+    "@types/d3": "^7.4.3",
+    "@types/topojson-client": "^3.1.5",
+    "prettier": "3.6.2",
+    "typescript": "5.9.3",
+    "vite": "^7.3.1",
+    "vite-plugin-glsl": "1.5.5",
+    "vitest": "^4.1.7"
+  }
+}

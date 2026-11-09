@@ -6,7 +6,7 @@
  * chunk the cube reads is kept (see lib/chunkStore.ts).
  */
 
-import type { ChunkEntry, ChunkStore } from "../../lib/chunkStore";
+import type { ChunkEntry, ChunkStore } from "@fxi/zartigl/engine";
 
 /** A chunk of a block, with the revision a stored copy must carry. */
 export interface BlockChunk {

@@ -9,9 +9,11 @@ import "@fontsource/ibm-plex-mono/500.css";
 import "@fontsource/ibm-plex-mono/600.css";
 import "./style.css";
 
-import { requireCatalogEntry, resolveLocalizedText } from "../catalog";
-import { ZarrSource } from "../lib/ZarrSource";
-import { cacheChunkStore } from "../lib/chunkStore";
+import {
+  requireCatalogEntry,
+  resolveLocalizedText,
+} from "@fxi/zartigl/catalog";
+import { ZarrSource, cacheChunkStore } from "@fxi/zartigl/engine";
 import {
   BlockCache,
   POTTMP,
