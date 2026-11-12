@@ -25,6 +25,10 @@ export interface Show {
   pois: boolean;
   /** Particles in the currents (contexts with a vector field). */
   particles: boolean;
+  /** The cube's frame: edges, ticks and axis labels. */
+  box: boolean;
+  /** The data's boundary surface (lake bed), when the context shades it. */
+  bed: boolean;
 }
 
 export interface RenderState {
@@ -671,23 +675,27 @@ export class CubeRenderer {
       false,
       frame.viewProjection,
     );
-    EDGES.forEach((edge, i) => {
-      const visible = edge.faces.some((normal) =>
-        CubeRenderer.faces(normal, frame.ray),
-      );
-      this.drawLines(
-        this.edges,
-        i * 2,
-        2,
-        visible ? [1, 1, 1, 0.75] : [1, 1, 1, 0.3],
-        visible ? 0 : 0.03,
-      );
-    });
+    if (state.show.box) {
+      EDGES.forEach((edge, i) => {
+        const visible = edge.faces.some((normal) =>
+          CubeRenderer.faces(normal, frame.ray),
+        );
+        this.drawLines(
+          this.edges,
+          i * 2,
+          2,
+          visible ? [1, 1, 1, 0.75] : [1, 1, 1, 0.3],
+          visible ? 0 : 0.03,
+        );
+      });
+    }
     const topVisible = CubeRenderer.faces([0, 0, 1], frame.ray);
     if (state.show.coast) {
       this.drawNamed("coast", [0.92, 0.94, 0.96, topVisible ? 0.85 : 0.18], 0);
     }
-    this.drawNamed("ticks", [1, 1, 1, 0.55], 0);
+    if (state.show.box) {
+      this.drawNamed("ticks", [1, 1, 1, 0.55], 0);
+    }
     if (state.show.slices) {
       this.drawNamed("slices", [1, 1, 1, 0.5], 0);
     }

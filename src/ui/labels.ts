@@ -206,7 +206,7 @@ export class Labels {
     frame: Frame,
     width: number,
     height: number,
-    show: { roi: boolean; pois?: boolean },
+    show: { roi: boolean; pois?: boolean; box?: boolean },
   ): boolean {
     const side = {
       y: CubeRenderer.faces([0, -1, 0], frame.ray) ? -1 : 1,
@@ -239,6 +239,12 @@ export class Labels {
       roi: show.roi,
       pois: show.pois ?? true,
     };
+    // Without the frame, no ticks or axis titles either.
+    if (show.box === false) {
+      for (const group of ["lon", "lon-minor", "lat", "lat-minor", "depth"]) {
+        visible[group] = false;
+      }
+    }
     for (const label of this.labels) {
       if (!visible[label.group]) {
         label.node.style.opacity = "0";

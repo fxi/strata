@@ -453,6 +453,8 @@ async function run(
     contours: true,
     pois: true,
     particles: Boolean(VELOCITY && particleSpec.show),
+    box: true,
+    bed: ctx.display.bed ?? false,
   };
   const cursor: Cursor = {
     ...(ctx.display.cursor ?? {
@@ -1164,6 +1166,8 @@ async function run(
       overlays.pois.some((p) => p.marker) ? undefined : null,
     ],
     ["show-particles", "particles", VELOCITY ? undefined : null],
+    ["show-box", "box", undefined],
+    ["show-bed", "bed", ctx.display.bed ? undefined : null],
   ];
   for (const [id, key, label] of toggles) {
     const input = $<HTMLInputElement>(id);
@@ -1578,7 +1582,7 @@ async function run(
       bottom,
       step: width < MOBILE ? 0.012 : 0.006,
       land: ctx.display.land ?? "solid",
-      bed: ctx.display.bed ?? false,
+      bed: Boolean(ctx.display.bed) && show.bed,
       ...(particles
         ? {
             particles: {
