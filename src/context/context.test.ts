@@ -80,28 +80,28 @@ describe("context schema", () => {
 
 describe("context request", () => {
   const at = (url: string) => new URL(url) as unknown as Location;
-  const requestedContext = (loc: Location) => request(loc, "/strata/");
+  const requestedContext = (loc: Location) => request(loc, "/zarcube/");
   it("reads the path, ?ctx= and ?config=", () => {
-    expect(requestedContext(at("https://fxi.io/strata/leman-lake"))).toEqual({
+    expect(requestedContext(at("https://fxi.io/zarcube/leman-lake"))).toEqual({
       kind: "listed",
       id: "leman-lake",
     });
     expect(
-      requestedContext(at("https://fxi.io/strata/?ctx=leman-lake")).id,
+      requestedContext(at("https://fxi.io/zarcube/?ctx=leman-lake")).id,
     ).toBe("leman-lake");
-    expect(requestedContext(at("https://fxi.io/strata/")).id).toBe(
+    expect(requestedContext(at("https://fxi.io/zarcube/")).id).toBe(
       "enso-nino-3-4",
     );
     expect(
       requestedContext(
-        at("https://fxi.io/strata/?config=https://x.org/c.json"),
+        at("https://fxi.io/zarcube/?config=https://x.org/c.json"),
       ),
     ).toEqual({
       kind: "url",
       id: "https://x.org/c.json",
       url: "https://x.org/c.json",
     });
-    expect(requestedContext(at("https://fxi.io/strata/imported")).kind).toBe(
+    expect(requestedContext(at("https://fxi.io/zarcube/imported")).kind).toBe(
       "imported",
     );
   });

@@ -1,5 +1,5 @@
 /**
- * strata: a 4D data cube from a context file (see context/types.ts). The
+ * zarcube: a 4D data cube from a context file (see context/types.ts). The
  * context names zartigl catalog entries, the extent, display defaults,
  * reference boxes and places; the cube reads its store in blocks of time
  * steps (five-year blocks of a point-series store, single steps of a field
@@ -74,7 +74,7 @@ import {
 import { PaletteMenu } from "./ui/palette-menu";
 import { currentCatalog, findEntry, storeUrl } from "./context/catalog";
 import { loadContext, localize, type LoadedContext } from "./context/load";
-import type { ContextState, StrataContext } from "./context/types";
+import type { ContextState, CubeContext } from "./context/types";
 import { ContextPicker } from "./ui/context-picker";
 import { VideoExporter, type VideoHost } from "./export/video";
 import { project } from "./gl/camera";
@@ -176,7 +176,7 @@ async function run(
     loading.textContent = text ?? "";
   };
   status("READING CATALOG…");
-  document.title = `${L(ctx.title)} — strata`;
+  document.title = `${L(ctx.title)} — zarcube`;
 
   const catalog = await currentCatalog();
   const entry = findEntry(catalog, ctx.data.scalar.entry);
@@ -1880,7 +1880,7 @@ async function run(
   }
 
   // Export: the context with the current view.
-  picker.setSnapshot((): StrataContext => {
+  picker.setSnapshot((): CubeContext => {
     const { state: _previous, ...rest } = ctx;
     void _previous;
     return {

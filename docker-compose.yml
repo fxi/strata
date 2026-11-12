@@ -1,7 +1,7 @@
 services:
-  strata:
+  zarcube:
     build: .
-    image: ghcr.io/fxi/strata:latest
+    image: ghcr.io/fxi/zarcube:latest
     ports:
       - "8080:8080"
     restart: unless-stopped

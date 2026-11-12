@@ -2,7 +2,7 @@
  * The CONTEXT dialog: the prepared contexts of `contexts/index.json` to open,
  * a context file to import (validated against the schema), the current
  * context and view to export as a file, and a context file to open by URL.
- * Opening a context loads its page: `/strata/<id>`.
+ * Opening a context loads its page: `/zarcube/<id>`.
  */
 
 import {
@@ -14,14 +14,14 @@ import {
   parseContext,
   storeImported,
 } from "../context/load";
-import type { StrataContext } from "../context/types";
+import type { CubeContext } from "../context/types";
 
 export interface ContextPickerOptions {
   button: HTMLButtonElement;
   /** Id of the open context, if any. */
   current?: string;
   /** The open context with the current view, for export. */
-  snapshot?: () => StrataContext;
+  snapshot?: () => CubeContext;
 }
 
 function element<K extends keyof HTMLElementTagNameMap>(
@@ -99,7 +99,7 @@ export class ContextPicker {
     exportButton.type = "button";
     exportButton.disabled = !options.snapshot;
     exportButton.title =
-      "The context and the current view, as a .strata.json file";
+      "The context and the current view, as a .zarcube.json file";
     exportButton.addEventListener("click", () => this.export());
     const schema = element("a", "Schema");
     schema.href = `${contextsUrl()}schema.json`;
@@ -145,7 +145,7 @@ export class ContextPicker {
   }
 
   /** Enables export of the open context and its view. */
-  setSnapshot(snapshot: () => StrataContext): void {
+  setSnapshot(snapshot: () => CubeContext): void {
     this.options.snapshot = snapshot;
     this.exportButton.disabled = false;
   }
@@ -219,7 +219,7 @@ export class ContextPicker {
       return;
     }
     saveFile(
-      `${context.id}.strata.json`,
+      `${context.id}.zarcube.json`,
       `${JSON.stringify(context, null, 2)}\n`,
       "application/json",
     );

@@ -1,14 +1,14 @@
-# strata
+# zarcube
 
 4D data cubes from the [zartigl](https://github.com/fxi/zartigl) catalog as
-interactive volumes, at [`fxi.io/strata`](https://fxi.io/strata/). Each cube
+interactive volumes, at [`fxi.io/zarcube`](https://fxi.io/zarcube/). Each cube
 is a **context**: a JSON file naming the catalog entries, the extent, display
 defaults, reference boxes, GeoJSON and places.
 
-- `/strata/` (`enso-nino-3-4`): monthly GODAS ocean temperature of the
+- `/zarcube/` (`enso-nino-3-4`): monthly GODAS ocean temperature of the
   equatorial Pacific (120° E–80° W, 14.5° S–15° N, 0–300 m) since 1980, the
   20 °C isotherm, an anomaly mode against 1991–2020 and a Niño 3.4 timeline;
-- `/strata/leman-lake`: Lake Geneva every 3 hours since December 2018
+- `/zarcube/leman-lake`: Lake Geneva every 3 hours since December 2018
   (Alplakes, Eawag), surface to bed, with particles in the currents.
 
 Across contexts:
@@ -25,8 +25,8 @@ Across contexts:
 
 `src/public/contexts/index.json` lists the prepared contexts; each one is a
 file validated against `src/context/schema.json` (served at
-`/strata/contexts/schema.json`, see `src/context/types.ts` for the fields).
-The CONTEXT button opens them, imports a file (`/strata/imported`, kept for
+`/zarcube/contexts/schema.json`, see `src/context/types.ts` for the fields).
+The CONTEXT button opens them, imports a file (`/zarcube/imported`, kept for
 the tab) and exports the current context with its view. `?config=<url>`
 opens a context file elsewhere.
 
@@ -74,10 +74,10 @@ npm run build
 
 The image serves the built app with nginx at `/` on port 8080
 (`/healthz` for health checks). `.github/workflows/docker.yml` publishes
-`ghcr.io/fxi/strata` on each push to `main` (`latest`, commit sha) and on
+`ghcr.io/fxi/zarcube` on each push to `main` (`latest`, commit sha) and on
 `v*` tags (semver).
 
 ```bash
 docker compose up --build        # http://localhost:8080/
-docker run -p 8080:8080 ghcr.io/fxi/strata:latest
+docker run -p 8080:8080 ghcr.io/fxi/zarcube:latest
 ```

@@ -7,7 +7,7 @@
  */
 
 import schema from "./schema.json";
-import type { StrataContext } from "./types";
+import type { CubeContext } from "./types";
 
 type Schema = Record<string, unknown>;
 
@@ -170,7 +170,7 @@ export function validateContext(value: unknown): SchemaError[] {
   if (errors.length) {
     return errors;
   }
-  const context = value as StrataContext;
+  const context = value as CubeContext;
   const { extent } = context;
   if (extent.west >= extent.east) {
     errors.push({ path: "/extent/east", message: "must be east of west" });

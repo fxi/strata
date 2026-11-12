@@ -1,11 +1,11 @@
 {
-  "name": "@fxi/strata",
+  "name": "@fxi/zarcube",
   "version": "0.1.0",
   "private": true,
   "description": "4D data cubes from zartigl catalog Zarr stores as interactive volumes: the Pacific thermocline (GODAS), Lake Geneva (Alplakes)",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/fxi/strata.git"
+    "url": "git+https://github.com/fxi/zarcube.git"
   },
   "type": "module",
   "author": "fxi",

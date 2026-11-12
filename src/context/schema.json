@@ -1,8 +1,8 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://fxi.io/strata/contexts/schema.json",
-  "title": "strata context",
-  "description": "One data cube of strata: zartigl catalog data, extent, display defaults, reference boxes, GeoJSON and points of interest.",
+  "$id": "https://fxi.io/zarcube/contexts/schema.json",
+  "title": "zarcube context",
+  "description": "One data cube of zarcube: zartigl catalog data, extent, display defaults, reference boxes, GeoJSON and points of interest.",
   "type": "object",
   "required": ["schemaVersion", "id", "title", "data", "extent", "display"],
   "additionalProperties": false,

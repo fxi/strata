@@ -26,9 +26,9 @@ jobs:
       - run: npm ci --ignore-scripts
       - run: npm run typecheck
       - run: npm test
-      # Base /strata/ matches https://fxi.io/strata/.
+      # Base /zarcube/ matches https://fxi.io/zarcube/.
       - run: npm run build
-      # Context links (/strata/leman-lake) have no file: Pages serves 404.html, the app itself.
+      # Context links (/zarcube/leman-lake) have no file: Pages serves 404.html, the app itself.
       - run: cp dist/index.html dist/404.html
       - uses: actions/upload-pages-artifact@v3
         with:

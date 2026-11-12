@@ -1,5 +1,5 @@
 /**
- * A strata context: what one cube shows. The data (zartigl catalog entries),
+ * A zarcube context: what one cube shows. The data (zartigl catalog entries),
  * the extent in space and depth, display defaults, reference boxes, GeoJSON
  * and points of interest, and the text around the cube. Validated against
  * `schema.json`; see `contexts/*.json` for examples.
@@ -116,7 +116,7 @@ export interface ContextState {
   show?: Partial<Record<string, boolean>>;
 }
 
-export interface StrataContext {
+export interface CubeContext {
   $schema?: string;
   schemaVersion: 1;
   id: string;

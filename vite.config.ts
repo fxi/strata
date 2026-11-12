@@ -10,7 +10,7 @@ const SCHEMA = fileURLToPath(
 /** The context schema, validated against in the app, also served at contexts/schema.json. */
 function contextSchema(): Plugin {
   return {
-    name: "strata-context-schema",
+    name: "zarcube-context-schema",
     configureServer(server) {
       server.middlewares.use((req, res, next) => {
         if (req.url?.split("?")[0].endsWith("/contexts/schema.json")) {
@@ -31,10 +31,10 @@ function contextSchema(): Plugin {
   };
 }
 
-// Served at https://fxi.io/strata/ (GitHub Pages of fxi/strata).
+// Served at https://fxi.io/zarcube/ (GitHub Pages of fxi/zarcube).
 export default defineConfig({
   plugins: [glsl(), contextSchema()],
-  base: "/strata/",
+  base: "/zarcube/",
   root: "src",
   // Context files (contexts/*.json) are served as they are.
   publicDir: "public",

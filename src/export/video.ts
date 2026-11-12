@@ -375,7 +375,7 @@ export class VideoExporter {
       await output.finalize();
       finished = true;
       const buffer = output.target.buffer!;
-      const name = `strata-${host.contextId}-${host.key(start)}-${host.key(Math.floor(lastStep))}.mp4`;
+      const name = `zarcube-${host.contextId}-${host.key(start)}-${host.key(Math.floor(lastStep))}.mp4`;
       saveFile(name, buffer, "video/mp4");
       this.say(`Saved ${name} (${(buffer.byteLength / 1e6).toFixed(1)} MB).`);
     } catch (error) {

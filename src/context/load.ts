@@ -1,18 +1,18 @@
 /**
  * Which context to open and loading it:
- * - `/strata/<id>`: a context of `contexts/index.json`;
+ * - `/zarcube/<id>`: a context of `contexts/index.json`;
  * - `?ctx=<id>`: the same, for hosts without path fallback;
  * - `?config=<url>`: a context file elsewhere (validated the same way);
- * - `/strata/imported`: the file last imported in this tab (session storage);
+ * - `/zarcube/imported`: the file last imported in this tab (session storage);
  * - otherwise the first context of the index.
  */
 
 import { formatErrors, validateContext } from "./validate";
-import type { ContextListing, Localized, StrataContext } from "./types";
+import type { ContextListing, Localized, CubeContext } from "./types";
 
 export const DEFAULT_CONTEXT = "enso-nino-3-4";
 export const IMPORTED = "imported";
-const IMPORT_KEY = "strata:imported-context";
+const IMPORT_KEY = "zarcube:imported-context";
 
 const base = () => import.meta.env.BASE_URL;
 /** Absolute URL of the bundled contexts folder. */
@@ -80,18 +80,18 @@ export async function listContexts(): Promise<ContextListing[]> {
 }
 
 /** Validates parsed JSON as a context, or throws the schema errors. */
-export function parseContext(value: unknown, origin: string): StrataContext {
+export function parseContext(value: unknown, origin: string): CubeContext {
   const errors = validateContext(value);
   if (errors.length) {
     throw new ContextError(
-      `${origin} is not a valid strata context:\n${formatErrors(errors)}`,
+      `${origin} is not a valid zarcube context:\n${formatErrors(errors)}`,
     );
   }
-  return value as StrataContext;
+  return value as CubeContext;
 }
 
 export interface LoadedContext {
-  context: StrataContext;
+  context: CubeContext;
   /** Base for relative URLs inside the context (GeoJSON). */
   baseUrl: string;
   request: ContextRequest;
@@ -138,7 +138,7 @@ export async function loadContext(
   };
 }
 
-/** Keeps an imported context for this tab, to open it at `/strata/imported`. */
-export function storeImported(context: StrataContext): void {
+/** Keeps an imported context for this tab, to open it at `/zarcube/imported`. */
+export function storeImported(context: CubeContext): void {
   sessionStorage.setItem(IMPORT_KEY, JSON.stringify(context));
 }
