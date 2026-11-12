@@ -31,6 +31,16 @@ uniform float u_life;
 uniform vec3 u_ray;            // view direction, away from the viewer
 uniform vec2 u_view_range;     // nearest and farthest dot(corner, ray) of the box
 uniform float u_depth_cue;     // alpha left at the far side of the box
+// Tinted (as projversor): color from the shown scalar through the palette over
+// its domain, brightness from speed. Otherwise color from speed.
+uniform bool u_tinted;
+uniform sampler3D u_t_a;       // T, current and next step (0 where missing)
+uniform sampler3D u_t_b;
+uniform sampler3D u_a_a;       // anomaly A, current and next step
+uniform sampler3D u_a_b;
+uniform float u_anomaly;       // 1: tint with A
+uniform sampler2D u_lut;
+uniform vec2 u_domain;
 uniform float u_point;          // > 0: a point of this size at the particle (slow water still leaves a trail)
 
 float levelCoord(float depth) {
@@ -77,7 +87,16 @@ void main() {
         / max(u_view_range.y - u_view_range.x, 1e-6);
     float cue = mix(1.0, u_depth_cue, smoothstep(0.0, 1.0, far));
     float alpha = (0.35 + 0.65 * sqrt(k)) * fade * cue * (fresh ? 0.0 : 1.0);
-    v_color = vec4(ramp(sqrt(k)), alpha);
+    vec3 color = ramp(sqrt(k));
+    if (u_tinted && m > 0.5) {
+        float value = (u_anomaly > 0.5
+            ? mix(texture(u_a_a, t).r, texture(u_a_b, t).r, u_mix)
+            : mix(texture(u_t_a, t).r, texture(u_t_b, t).r, u_mix)) / m;
+        float position = clamp((value - u_domain.x) / (u_domain.y - u_domain.x), 0.0, 1.0);
+        // Square-root speed, as projversor: still water darker, currents at full color.
+        color = texture(u_lut, vec2(position, 0.5)).rgb * mix(0.45, 1.0, sqrt(k));
+    }
+    v_color = vec4(color, alpha);
     gl_Position = u_vp * vec4(v_world, 1.0);
     gl_PointSize = max(u_point, 1.0);
 }

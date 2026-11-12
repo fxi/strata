@@ -68,6 +68,10 @@ export interface FlowTextures {
   depthSize: number;
   /** Cell size, volume fraction east and north. */
   cell: [number, number];
+  /** The scalar and its anomaly, current and next step, and the palette: the tint. */
+  t: [WebGLTexture, WebGLTexture];
+  a: [WebGLTexture, WebGLTexture];
+  lut: WebGLTexture;
 }
 
 export interface ParticleDraw {
@@ -86,6 +90,11 @@ export interface ParticleDraw {
   point: number;
   /** Alpha left at the far side of the box from the viewer (depth cue), 0–1. */
   depthCue: number;
+  /** Color from the shown scalar and the palette (else from speed). */
+  tinted: boolean;
+  /** Tint with the anomaly. */
+  anomaly: boolean;
+  domain: [number, number];
 }
 
 export class ParticleSystem {
@@ -338,6 +347,25 @@ export class ParticleSystem {
       norm;
     gl.uniform2f(this.u(p, "u_view_range"), -reach, reach);
     gl.uniform1f(this.u(p, "u_depth_cue"), d.depthCue);
+    // The tint: the shown scalar through the palette, on the volume pass's units.
+    const tint = (
+      unit: number,
+      name: string,
+      target: number,
+      texture: WebGLTexture,
+    ) => {
+      gl.activeTexture(gl.TEXTURE0 + unit);
+      gl.bindTexture(target, texture);
+      gl.uniform1i(this.u(p, name), unit);
+    };
+    tint(0, "u_t_a", gl.TEXTURE_3D, flow.t[0]);
+    tint(1, "u_t_b", gl.TEXTURE_3D, flow.t[1]);
+    tint(2, "u_lut", gl.TEXTURE_2D, flow.lut);
+    tint(3, "u_a_a", gl.TEXTURE_3D, flow.a[0]);
+    tint(4, "u_a_b", gl.TEXTURE_3D, flow.a[1]);
+    gl.uniform1i(this.u(p, "u_tinted"), d.tinted ? 1 : 0);
+    gl.uniform1f(this.u(p, "u_anomaly"), d.anomaly ? 1 : 0);
+    gl.uniform2fv(this.u(p, "u_domain"), d.domain);
     gl.bindVertexArray(this.drawVaos[this.current]);
     const drawn = Math.min(this.count, Math.max(0, Math.round(d.drawn)));
     // The path moved this frame, and a point at the particle: segments under a

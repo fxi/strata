@@ -224,6 +224,7 @@
             "density": { "type": "number", "minimum": 0, "maximum": 1 },
             "fade": { "type": "number", "minimum": 0, "maximum": 1 },
             "depthCue": { "type": "number", "minimum": 0, "maximum": 1 },
+            "tint": { "enum": ["scalar", "speed"] },
             "speedMax": { "type": "number", "minimum": 0 },
             "idleSteps": { "type": "number", "minimum": 0 }
           }

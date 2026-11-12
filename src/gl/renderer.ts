@@ -56,6 +56,8 @@ export interface RenderState {
     point: number;
     /** Alpha left at the far side of the box from the viewer. */
     depthCue: number;
+    /** Color from the shown scalar and the palette (else from speed). */
+    tint: boolean;
   };
 }
 
@@ -503,6 +505,9 @@ export class CubeRenderer {
       depth: this.depth,
       depthSize: this.depthSize,
       cell: this.cell,
+      t: this.fields.t,
+      a: this.fields.a,
+      lut: this.lut,
     };
   }
 
@@ -653,6 +658,9 @@ export class CubeRenderer {
         fade: state.particles.fade,
         point: state.particles.point,
         depthCue: state.particles.depthCue,
+        tinted: state.particles.tint,
+        anomaly: state.anomaly,
+        domain: state.domain,
       });
     }
 

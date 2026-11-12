@@ -179,6 +179,8 @@ export interface StrataContext {
       fade?: number;
       /** Alpha left at the far side of the cube from the viewer, 0–1 (0.3 by default). */
       depthCue?: number;
+      /** Color: the shown scalar through the palette (default), or the speed. */
+      tint?: "scalar" | "speed";
       /** m/s at the top of the speed colors. */
       speedMax?: number;
       /** Time steps of motion per second while paused. */

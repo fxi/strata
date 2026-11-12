@@ -1594,6 +1594,8 @@ async function run(
               // One CSS pixel: as thin as the trails, crisp at any pixel ratio.
               point: 1,
               depthCue: particleSpec.depthCue ?? 0.3,
+              // Color from the scalar through the palette (as projversor), unless set to speed.
+              tint: particleSpec.tint !== "speed",
             },
           }
         : {}),
