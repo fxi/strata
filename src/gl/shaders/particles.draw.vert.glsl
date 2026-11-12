@@ -86,7 +86,7 @@ void main() {
     float far = (dot(world(a_curr.xyz), normalize(u_ray)) - u_view_range.x)
         / max(u_view_range.y - u_view_range.x, 1e-6);
     float cue = mix(1.0, u_depth_cue, smoothstep(0.0, 1.0, far));
-    float alpha = (0.35 + 0.65 * sqrt(k)) * fade * cue * (fresh ? 0.0 : 1.0);
+    float alpha = (0.01 + 0.99 * sqrt(k)) * fade * cue * (fresh ? 0.0 : 1.0);
     vec3 color = ramp(sqrt(k));
     if (u_tinted && m > 0.5) {
         float value = (u_anomaly > 0.5

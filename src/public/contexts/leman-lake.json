@@ -30,8 +30,8 @@
     "speed": 1
   },
   "display": {
-    "domain": [4, 24],
-    "palette": "thermal",
+    "domain": [0, 30],
+    "palette": "thermal-alt",
     "unit": "°C",
     "iso": { "value": 10, "step": 2 },
     "land": "clear",
@@ -42,12 +42,12 @@
     "landLabel": "shore / lake bed",
     "particles": {
       "show": true,
-      "count": 60000,
-      "density": 0.05,
-      "fade": 0.985,
+      "count": 40000,
+      "density": 0.6,
+      "fade": 0.99,
       "depthCue": 0.3,
-      "flow": 1,
-      "speedMax": 0.12,
+      "flow": 10,
+      "speedMax": 0.35,
       "idleSteps": 1
     }
   },
