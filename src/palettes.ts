@@ -1,19 +1,41 @@
 /**
- * Color ramps of the cube, as 256 RGB triples (0–255). Turbo is a
- * perceptually smoothed rainbow (Google's polynomial approximation, Apache
- * 2.0); thermal is the catalog's temperature palette (cmocean).
+ * Color ramps of the cube, as 256 RGB triples (0–255): zartigl's palettes
+ * (cmocean and others) plus turbo, a perceptually smoothed rainbow (Google's
+ * polynomial approximation, Apache 2.0).
  */
 
 import { getPalettes } from "@fxi/zartigl/engine";
 
-/** Turbo and thermal for the temperature; balance (diverging) for the anomaly. */
-export type PaletteName = "turbo" | "thermal" | "balance";
+/** A palette id: "turbo" or a zartigl palette. */
+export type PaletteName = string;
 
-export const PALETTE_LABELS: Record<PaletteName, string> = {
-  turbo: "Turbo",
-  thermal: "Thermal",
-  balance: "Balance",
-};
+export interface PaletteInfo {
+  id: string;
+  label: string;
+  /** Sequential ramps for values, diverging ones for anomalies. */
+  kind: "sequential" | "diverging";
+}
+
+/**
+ * The palettes offered: turbo and zartigl's sequential and diverging ones.
+ * Monochrome particle colors and the cyclic (direction) ramp do not suit a scale.
+ */
+export function listPalettes(): PaletteInfo[] {
+  const zartigl = getPalettes()
+    .filter(
+      (palette) =>
+        !palette.tags.includes("monochrome") &&
+        !palette.tags.includes("cyclic"),
+    )
+    .map(
+      (palette): PaletteInfo => ({
+        id: palette.id,
+        label: palette.label,
+        kind: palette.tags.includes("diverging") ? "diverging" : "sequential",
+      }),
+    );
+  return [{ id: "turbo", label: "Turbo", kind: "sequential" }, ...zartigl];
+}
 
 const SIZE = 256;
 
@@ -64,7 +86,7 @@ function stops(colors: string[]): (t: number) => [number, number, number] {
   };
 }
 
-/** Color stops of a zartigl palette (thermal, balance). */
+/** Color stops of a zartigl palette. */
 function paletteColors(name: PaletteName): string[] {
   const palette = getPalettes({ includeDeprecated: true }).find(
     (candidate) => candidate.id === name,

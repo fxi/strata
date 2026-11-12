@@ -185,9 +185,9 @@
         "domain": { "$ref": "#/$defs/range" },
         "palettes": {
           "type": "array",
-          "items": { "enum": ["turbo", "thermal", "balance"] }
+          "items": { "type": "string" }
         },
-        "palette": { "enum": ["turbo", "thermal", "balance"] },
+        "palette": { "type": "string" },
         "unit": { "type": "string" },
         "iso": {
           "type": "object",

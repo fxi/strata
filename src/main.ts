@@ -65,7 +65,13 @@ import {
 } from "./gl/camera";
 import { CubeRenderer, LineBatch, type Show } from "./gl/renderer";
 import { createSpace, fromWorld, toWorld } from "./gl/space";
-import { rampBytes, rampColor, type PaletteName } from "./palettes";
+import {
+  listPalettes,
+  rampBytes,
+  rampColor,
+  type PaletteName,
+} from "./palettes";
+import { PaletteMenu } from "./ui/palette-menu";
 import { currentCatalog, findEntry, storeUrl } from "./context/catalog";
 import { loadContext, localize, type LoadedContext } from "./context/load";
 import type { ContextState, StrataContext } from "./context/types";
@@ -88,11 +94,6 @@ const PRESET_NAMES: Record<Preset, string> = {
   front: "3D FRONT",
   side: "3D SIDE",
   cavalier: "3D CAVALIER",
-};
-const PALETTE_NAMES: Record<PaletteName, string> = {
-  turbo: "TURBO",
-  thermal: "THERMAL",
-  balance: "BALANCE",
 };
 
 const $ = <T extends HTMLElement>(id: string) =>
@@ -424,12 +425,19 @@ async function run(
   }
 
   // State.
-  const palettes = (ctx.display.palettes ?? [
-    "turbo",
-    "thermal",
-  ]) as PaletteName[];
-  let palette: PaletteName =
-    (ctx.display.palette as PaletteName) ?? palettes[0];
+  // Palettes: every zartigl one (or the context's list), diverging ones for the anomaly.
+  const allPalettes = listPalettes().filter(
+    (p) => !ctx.display.palettes || ctx.display.palettes.includes(p.id),
+  );
+  const palettes = allPalettes.map((p) => p.id);
+  const divergingPalettes = allPalettes.filter((p) => p.kind === "diverging");
+  let palette: PaletteName = palettes.includes(ctx.display.palette ?? "")
+    ? ctx.display.palette!
+    : (palettes.find((id) => id === "thermal") ?? palettes[0]);
+  let anomalyPalette: PaletteName =
+    divergingPalettes.find((p) => p.id === "balance")?.id ??
+    divergingPalettes[0]?.id ??
+    "balance";
   /** Absolute values, or their departure from the climatology (balance palette, fixed). */
   let mode: Mode = "absolute";
   const anomalyMode = () => mode === "anomaly" && ANOMALY !== null;
@@ -1284,41 +1292,27 @@ async function run(
       }
     }
   };
-  const paletteGroup = $("palettes");
-  paletteGroup.replaceChildren(
-    ...palettes.map((name) => {
-      const button = document.createElement("button");
-      button.type = "button";
-      button.dataset.palette = name;
-      button.textContent = PALETTE_NAMES[name] ?? name.toUpperCase();
-      return button;
-    }),
-  );
-  paletteGroup.hidden = palettes.length < 2;
-  const paletteButtons =
-    paletteGroup.querySelectorAll<HTMLButtonElement>("[data-palette]");
-  /** The ramp of the mode: the chosen one for the values, balance for the anomaly. */
-  const applyRamp = () => {
-    ramp = rampBytes(anomalyMode() ? "balance" : palette);
-    renderer.setPalette(ramp);
-    drawCursorSeries();
-    for (const button of paletteButtons) {
-      button.disabled = anomalyMode();
-      button.setAttribute(
-        "aria-pressed",
-        String(!anomalyMode() && button.dataset.palette === palette),
-      );
+  /** The palette menu: every palette for the values, the diverging ones for the anomaly. */
+  const paletteMenu = new PaletteMenu((id) => {
+    if (anomalyMode()) {
+      anomalyPalette = id;
+    } else {
+      palette = id;
     }
+    applyRamp();
+  });
+  $("palettes").replaceChildren(paletteMenu.element);
+  /** The ramp of the mode: one chosen for the values, one for the anomaly. */
+  const applyRamp = () => {
+    const shown = anomalyMode() ? anomalyPalette : palette;
+    ramp = rampBytes(shown);
+    renderer.setPalette(ramp);
+    paletteMenu.set(anomalyMode() ? divergingPalettes : allPalettes, shown);
+    drawCursorSeries();
     drawLegend();
     drawPanels();
     requestDraw();
   };
-  for (const button of paletteButtons) {
-    button.addEventListener("click", () => {
-      palette = button.dataset.palette as PaletteName;
-      applyRamp();
-    });
-  }
   $("mode-group").hidden = !ANOMALY;
   const modeButtons =
     document.querySelectorAll<HTMLButtonElement>("[data-mode]");

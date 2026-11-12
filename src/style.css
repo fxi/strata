@@ -1035,3 +1035,85 @@ input[type="range"]:focus-visible {
   font-size: 10px;
   color: #ffdb73;
 }
+
+/* Palette menu: the chosen ramp, a list of swatches. */
+.palette-menu {
+  position: relative;
+}
+
+.palette-button {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  height: 28px;
+  border: 1px solid var(--rule);
+  background: none;
+  padding: 0 8px;
+  font-size: 11px;
+  letter-spacing: 0.06em;
+  cursor: pointer;
+}
+
+.palette-button:hover,
+.palette-button[aria-expanded="true"] {
+  border-color: var(--ink);
+}
+
+.palette-swatch {
+  flex: none;
+  width: 56px;
+  height: 10px;
+  border: 1px solid var(--rule);
+}
+
+.palette-name {
+  flex: 1;
+  text-align: left;
+}
+
+.palette-caret {
+  color: var(--muted);
+}
+
+.palette-list {
+  position: fixed;
+  z-index: 25;
+  overflow-y: auto;
+  background: var(--ground);
+  border: 1px solid var(--ink);
+  padding: 4px 0;
+  box-shadow: 0 8px 30px rgba(0, 0, 0, 0.6);
+}
+
+.palette-group {
+  padding: 6px 10px 2px;
+  font-size: 10px;
+  letter-spacing: 0.12em;
+  color: var(--muted);
+}
+
+.palette-option {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  border: 0;
+  background: none;
+  padding: 4px 10px;
+  font-size: 11px;
+  letter-spacing: 0.06em;
+  text-align: left;
+  cursor: pointer;
+}
+
+.palette-option:hover,
+.palette-option:focus-visible {
+  background: var(--panel);
+  outline: 1px solid var(--rule);
+  outline-offset: -1px;
+}
+
+.palette-option[aria-selected="true"] {
+  box-shadow: inset 3px 0 0 var(--ink);
+}

@@ -42,7 +42,6 @@
   },
   "display": {
     "domain": [10, 30],
-    "palettes": ["turbo", "thermal"],
     "palette": "turbo",
     "unit": "°C",
     "iso": { "value": 20, "step": 2 },

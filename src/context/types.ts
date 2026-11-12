@@ -153,6 +153,7 @@ export interface StrataContext {
   };
   display: {
     domain: [number, number];
+    /** Palettes offered (zartigl ids or "turbo"); all of them by default. */
     palettes?: string[];
     palette?: string;
     unit?: string;
