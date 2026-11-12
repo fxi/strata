@@ -84,6 +84,8 @@ export interface ParticleDraw {
   fade: number;
   /** Point size at each particle, device pixels. */
   point: number;
+  /** Alpha left at the far side of the box from the viewer (depth cue), 0–1. */
+  depthCue: number;
 }
 
 export class ParticleSystem {
@@ -326,6 +328,16 @@ export class ParticleSystem {
     gl.uniform1f(this.u(p, "u_mix"), d.mix);
     gl.uniform1f(this.u(p, "u_speed_max"), d.speedMax);
     gl.uniform1f(this.u(p, "u_life"), this.life);
+    // The box's extent along the view ray, for the depth cue.
+    const ray = d.frame.ray;
+    const norm = Math.hypot(ray[0], ray[1], ray[2]) || 1;
+    const reach =
+      (Math.abs(ray[0]) * d.half[0] +
+        Math.abs(ray[1]) * d.half[1] +
+        Math.abs(ray[2]) * d.half[2]) /
+      norm;
+    gl.uniform2f(this.u(p, "u_view_range"), -reach, reach);
+    gl.uniform1f(this.u(p, "u_depth_cue"), d.depthCue);
     gl.bindVertexArray(this.drawVaos[this.current]);
     const drawn = Math.min(this.count, Math.max(0, Math.round(d.drawn)));
     // The path moved this frame, and a point at the particle: segments under a

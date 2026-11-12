@@ -5,7 +5,9 @@ precision highp sampler3D;
 // Each particle as the segment it moved this frame, from its previous state to
 // its current one, drawn into the trail texture (see particles.ts): the
 // trails are the accumulated segments, faded a little every frame. Colored by
-// speed; deep, slow water fades. A particle that just respawned draws nothing.
+// speed and faded with the distance to the viewer (depth cue: from above the
+// surface is sharpest, from the side the near shore). A particle that just
+// respawned draws nothing.
 
 in vec4 a_prev;
 in vec4 a_curr;
@@ -26,6 +28,9 @@ uniform float u_mix;
 uniform vec2 u_cell;           // cell size, volume fraction: longer moves are respawns
 uniform float u_speed_max;     // m/s at the top of the color ramp
 uniform float u_life;
+uniform vec3 u_ray;            // view direction, away from the viewer
+uniform vec2 u_view_range;     // nearest and farthest dot(corner, ray) of the box
+uniform float u_depth_cue;     // alpha left at the far side of the box
 uniform float u_point;          // > 0: a point of this size at the particle (slow water still leaves a trail)
 
 float levelCoord(float depth) {
@@ -67,9 +72,11 @@ void main() {
     float age = a_curr.w;
     float fade = smoothstep(0.0, 0.35, age) * (1.0 - smoothstep(1.2 * u_life, 1.5 * u_life, age));
     float k = clamp(speed / u_speed_max, 0.0, 1.0);
-    // Still water fades, currents stand out; deeper water is dimmer.
-    float depthFade = mix(1.0, 0.65, clamp(p.z, 0.0, 1.0));
-    float alpha = (0.35 + 0.65 * sqrt(k)) * fade * depthFade * (fresh ? 0.0 : 1.0);
+    // Still water fades, currents stand out; farther from the viewer is fainter.
+    float far = (dot(world(a_curr.xyz), normalize(u_ray)) - u_view_range.x)
+        / max(u_view_range.y - u_view_range.x, 1e-6);
+    float cue = mix(1.0, u_depth_cue, smoothstep(0.0, 1.0, far));
+    float alpha = (0.35 + 0.65 * sqrt(k)) * fade * cue * (fresh ? 0.0 : 1.0);
     v_color = vec4(ramp(sqrt(k)), alpha);
     gl_Position = u_vp * vec4(v_world, 1.0);
     gl_PointSize = max(u_point, 1.0);

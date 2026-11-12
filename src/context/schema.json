@@ -223,6 +223,7 @@
             "flow": { "type": "number", "minimum": 0, "maximum": 20 },
             "density": { "type": "number", "minimum": 0, "maximum": 1 },
             "fade": { "type": "number", "minimum": 0, "maximum": 1 },
+            "depthCue": { "type": "number", "minimum": 0, "maximum": 1 },
             "speedMax": { "type": "number", "minimum": 0 },
             "idleSteps": { "type": "number", "minimum": 0 }
           }

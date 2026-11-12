@@ -1593,6 +1593,7 @@ async function run(
               fade,
               // One CSS pixel: as thin as the trails, crisp at any pixel ratio.
               point: 1,
+              depthCue: particleSpec.depthCue ?? 0.3,
             },
           }
         : {}),

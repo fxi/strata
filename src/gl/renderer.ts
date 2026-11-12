@@ -54,6 +54,8 @@ export interface RenderState {
     fade: number;
     /** Point size at each particle, device pixels. */
     point: number;
+    /** Alpha left at the far side of the box from the viewer. */
+    depthCue: number;
   };
 }
 
@@ -650,6 +652,7 @@ export class CubeRenderer {
         drawn: state.particles.drawn,
         fade: state.particles.fade,
         point: state.particles.point,
+        depthCue: state.particles.depthCue,
       });
     }
 

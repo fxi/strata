@@ -177,6 +177,8 @@ export interface StrataContext {
       density?: number;
       /** Share of the trails kept each frame, 0–1 (0.985 by default). */
       fade?: number;
+      /** Alpha left at the far side of the cube from the viewer, 0–1 (0.3 by default). */
+      depthCue?: number;
       /** m/s at the top of the speed colors. */
       speedMax?: number;
       /** Time steps of motion per second while paused. */
