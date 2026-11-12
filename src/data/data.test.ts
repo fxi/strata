@@ -7,8 +7,9 @@ import {
   POTTMP_ANOM,
   loadBlock,
   monthVolume,
+  sampleAt,
 } from "./blocks";
-import { depthWeights } from "./depth";
+import { depthTable, depthWeights } from "./depth";
 import {
   anomaly,
   climatology,
@@ -101,11 +102,15 @@ describe("blocks", () => {
     expect(block.months).toBe(10);
     expect(requested).toHaveLength(3 * 6);
     expect(requested.every((indices) => indices[0] === 2)).toBe(true);
-    const volume = monthVolume(block, box, 0, 3, 25);
-    // Depth 0 m uses the 5 m level, 12.5 m is between 5 and 15 m.
+    const volume = monthVolume(block, box, 0);
+    // On the store's levels: 5 m, then 15 m.
+    expect(volume.levels).toBe(box.depth.length);
     expect(volume.values[0]).toBeCloseTo(10);
-    expect(volume.values[volume.cols * volume.rows]).toBeCloseTo(10.75, 2);
-    const land = monthVolume(block, box, 1, 3, 25);
+    expect(volume.values[volume.cols * volume.rows]).toBeCloseTo(11, 2);
+    // Depth 0 m uses the 5 m level, 12.5 m is between 5 and 15 m.
+    expect(sampleAt(volume, volume.values, 0, 0, 0)).toBeCloseTo(10);
+    expect(sampleAt(volume, volume.values, 0, 0, 12.5)).toBeCloseTo(10.75, 2);
+    const land = monthVolume(block, box, 1);
     // Row 0 (lat −14.5, tile 3) and column 0 (120.5° E, tile 5) is the cell set to NaN.
     expect(land.values[0]).toBeNaN();
     expect(block.codes[0]).toBe(Math.round(10 / POTTMP.scale));
@@ -136,7 +141,7 @@ describe("blocks", () => {
     );
     expect(new Set(requested)).toEqual(new Set(["pottmp", "pottmp_anom"]));
     expect(departures.scale).toBe(0.001);
-    const volume = monthVolume(block, box, 0, 3, 25, undefined, departures);
+    const volume = monthVolume(block, box, 0, departures);
     expect(volume.values[0]).toBeCloseTo(20, 3);
     // 0.001 °C codes keep the third decimal the 0.002 °C ones would round.
     expect(volume.anomaly![0]).toBeCloseTo(1.235, 3);
@@ -211,5 +216,22 @@ describe("Niño 3.4", () => {
     ]);
     expect(new Date(times[found[0].start]).getUTCFullYear()).toBe(1997);
     expect(found[0].peak).toBeGreaterThan(1.5);
+  });
+});
+
+describe("depth table", () => {
+  it("gives the texture coordinate of depthWeights' interpolation", () => {
+    const levels = [5, 15, 25, 50];
+    const table = depthTable(levels, 11, 50);
+    const { upper, weight } = depthWeights(levels, 11, 50);
+    table.forEach((z, step) => {
+      expect(z * levels.length - 0.5).toBeCloseTo(
+        upper[step] + weight[step],
+        6,
+      );
+    });
+    // 0 m: the first slice's centre; 50 m: the last one's.
+    expect(table[0]).toBeCloseTo(0.5 / 4, 6);
+    expect(table[10]).toBeCloseTo(3.5 / 4, 6);
   });
 });

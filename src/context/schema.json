@@ -1,0 +1,306 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://fxi.io/strata/contexts/schema.json",
+  "title": "strata context",
+  "description": "One data cube of strata: zartigl catalog data, extent, display defaults, reference boxes, GeoJSON and points of interest.",
+  "type": "object",
+  "required": ["schemaVersion", "id", "title", "data", "extent", "display"],
+  "additionalProperties": false,
+  "$defs": {
+    "localized": {
+      "oneOf": [
+        { "type": "string" },
+        { "type": "object", "additionalProperties": { "type": "string" } }
+      ]
+    },
+    "range": {
+      "type": "array",
+      "items": { "type": "number" },
+      "minItems": 2,
+      "maxItems": 2
+    },
+    "lon": { "type": "number", "minimum": -180, "maximum": 360 },
+    "lat": { "type": "number", "minimum": -90, "maximum": 90 },
+    "overlay": {
+      "type": "object",
+      "required": ["type"],
+      "discriminator": "type",
+      "oneOf": [
+        {
+          "type": "object",
+          "required": ["type", "id", "west", "east", "south", "north"],
+          "additionalProperties": false,
+          "properties": {
+            "type": { "const": "box" },
+            "id": { "type": "string" },
+            "label": { "$ref": "#/$defs/localized" },
+            "west": { "$ref": "#/$defs/lon" },
+            "east": { "$ref": "#/$defs/lon" },
+            "south": { "$ref": "#/$defs/lat" },
+            "north": { "$ref": "#/$defs/lat" },
+            "depth": { "$ref": "#/$defs/range" }
+          }
+        },
+        {
+          "type": "object",
+          "required": ["type", "label", "lon", "lat"],
+          "additionalProperties": false,
+          "properties": {
+            "type": { "const": "poi" },
+            "label": { "$ref": "#/$defs/localized" },
+            "lon": { "$ref": "#/$defs/lon" },
+            "lat": { "$ref": "#/$defs/lat" },
+            "drop": { "type": "number", "minimum": 0 },
+            "marker": { "type": "boolean" },
+            "onTop": { "type": "boolean" }
+          }
+        },
+        {
+          "type": "object",
+          "required": ["type", "id"],
+          "additionalProperties": false,
+          "properties": {
+            "type": { "const": "geojson" },
+            "id": { "type": "string" },
+            "label": { "$ref": "#/$defs/localized" },
+            "url": { "type": "string" },
+            "data": { "type": "object" }
+          }
+        },
+        {
+          "type": "object",
+          "required": ["type"],
+          "additionalProperties": false,
+          "properties": {
+            "type": { "const": "coastline" },
+            "label": { "$ref": "#/$defs/localized" }
+          }
+        },
+        {
+          "type": "object",
+          "required": ["type"],
+          "additionalProperties": false,
+          "properties": {
+            "type": { "const": "mask-outline" },
+            "label": { "$ref": "#/$defs/localized" }
+          }
+        }
+      ]
+    }
+  },
+  "properties": {
+    "$schema": { "type": "string" },
+    "schemaVersion": { "const": 1 },
+    "id": { "type": "string", "pattern": "^[a-z0-9][a-z0-9-]*$" },
+    "title": { "$ref": "#/$defs/localized" },
+    "subtitle": { "$ref": "#/$defs/localized" },
+    "provider": { "$ref": "#/$defs/localized" },
+    "description": { "$ref": "#/$defs/localized" },
+    "heading": { "$ref": "#/$defs/localized" },
+    "credit": { "$ref": "#/$defs/localized" },
+    "data": {
+      "type": "object",
+      "required": ["store", "scalar"],
+      "additionalProperties": false,
+      "properties": {
+        "store": { "enum": ["pointSeries", "field"] },
+        "scalar": {
+          "type": "object",
+          "required": ["entry", "variable"],
+          "additionalProperties": false,
+          "properties": {
+            "entry": { "type": "string" },
+            "variable": { "type": "string" },
+            "anomaly": {
+              "type": "object",
+              "required": ["variable", "domain"],
+              "additionalProperties": false,
+              "properties": {
+                "entry": { "type": "string" },
+                "variable": { "type": "string" },
+                "domain": { "$ref": "#/$defs/range" },
+                "basePeriod": { "$ref": "#/$defs/range" },
+                "subtitle": { "$ref": "#/$defs/localized" }
+              }
+            }
+          }
+        },
+        "vector": {
+          "type": "object",
+          "required": ["entry", "u", "v"],
+          "additionalProperties": false,
+          "properties": {
+            "entry": { "type": "string" },
+            "u": { "type": "string" },
+            "v": { "type": "string" }
+          }
+        }
+      }
+    },
+    "extent": {
+      "type": "object",
+      "required": ["west", "east", "south", "north", "bottom"],
+      "additionalProperties": false,
+      "properties": {
+        "west": { "$ref": "#/$defs/lon" },
+        "east": { "$ref": "#/$defs/lon" },
+        "south": { "$ref": "#/$defs/lat" },
+        "north": { "$ref": "#/$defs/lat" },
+        "bottom": { "type": "number", "minimum": 1 },
+        "lonWrap": { "type": "boolean" }
+      }
+    },
+    "space": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "latStretch": { "type": "number", "minimum": 0.1, "maximum": 20 }
+      }
+    },
+    "time": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "speeds": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "type": "object",
+            "required": ["value", "label"],
+            "additionalProperties": false,
+            "properties": {
+              "value": { "type": "number", "minimum": 0 },
+              "label": { "type": "string" }
+            }
+          }
+        },
+        "speed": { "type": "integer", "minimum": 0 }
+      }
+    },
+    "display": {
+      "type": "object",
+      "required": ["domain"],
+      "additionalProperties": false,
+      "properties": {
+        "domain": { "$ref": "#/$defs/range" },
+        "palettes": {
+          "type": "array",
+          "items": { "enum": ["turbo", "thermal", "balance"] }
+        },
+        "palette": { "enum": ["turbo", "thermal", "balance"] },
+        "unit": { "type": "string" },
+        "iso": {
+          "type": "object",
+          "required": ["value"],
+          "additionalProperties": false,
+          "properties": {
+            "value": { "type": "number" },
+            "step": { "type": "number", "minimum": 0 },
+            "label": { "$ref": "#/$defs/localized" }
+          }
+        },
+        "land": { "enum": ["solid", "clear"] },
+        "bed": { "type": "boolean" },
+        "cursor": {
+          "type": "object",
+          "required": ["lon", "lat", "depth"],
+          "additionalProperties": false,
+          "properties": {
+            "lon": { "type": "number" },
+            "lat": { "type": "number" },
+            "depth": { "type": "number" }
+          }
+        },
+        "view": { "enum": ["iso", "top", "front", "side", "cavalier"] },
+        "depthStep": { "type": "number", "minimum": 0 },
+        "landLabel": { "type": "string" },
+        "particles": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "show": { "type": "boolean" },
+            "count": { "type": "integer", "minimum": 0, "maximum": 1000000 },
+            "flow": { "type": "number", "minimum": 0, "maximum": 20 },
+            "density": { "type": "number", "minimum": 0, "maximum": 1 },
+            "fade": { "type": "number", "minimum": 0, "maximum": 1 },
+            "speedMax": { "type": "number", "minimum": 0 },
+            "idleSteps": { "type": "number", "minimum": 0 }
+          }
+        }
+      }
+    },
+    "facts": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "dataset": { "$ref": "#/$defs/localized" },
+        "grid": { "$ref": "#/$defs/localized" },
+        "region": { "$ref": "#/$defs/localized" }
+      }
+    },
+    "panel": {
+      "type": "object",
+      "required": ["title"],
+      "additionalProperties": false,
+      "properties": {
+        "title": { "$ref": "#/$defs/localized" },
+        "note": { "$ref": "#/$defs/localized" },
+        "detail": { "$ref": "#/$defs/localized" }
+      }
+    },
+    "overlays": { "type": "array", "items": { "$ref": "#/$defs/overlay" } },
+    "indicators": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["type"],
+        "discriminator": "type",
+        "oneOf": [
+          {
+            "type": "object",
+            "required": ["type", "box", "basePeriod"],
+            "additionalProperties": false,
+            "properties": {
+              "type": { "const": "box-index" },
+              "box": { "type": "string" },
+              "basePeriod": { "$ref": "#/$defs/range" },
+              "label": { "$ref": "#/$defs/localized" }
+            }
+          },
+          {
+            "type": "object",
+            "required": ["type"],
+            "additionalProperties": false,
+            "properties": {
+              "type": { "const": "cursor-series" },
+              "label": { "$ref": "#/$defs/localized" }
+            }
+          }
+        ]
+      }
+    },
+    "state": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "time": { "type": "string" },
+        "cursor": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "lon": { "type": "number" },
+            "lat": { "type": "number" },
+            "depth": { "type": "number" }
+          }
+        },
+        "view": { "type": "string" },
+        "mode": { "enum": ["absolute", "anomaly"] },
+        "palette": { "type": "string" },
+        "show": {
+          "type": "object",
+          "additionalProperties": { "type": "boolean" }
+        }
+      }
+    }
+  }
+}

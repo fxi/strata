@@ -64,3 +64,20 @@ export function interpolate(
   }
   return upperValue + (lowerValue - upperValue) * weight;
 }
+
+/**
+ * The texture coordinate of each regular depth from 0 to `bottom` (`size`
+ * entries) in a 3D texture of `levels` slices, one per level: linear
+ * filtering between the slices then gives depthWeights' interpolation.
+ */
+export function depthTable(
+  levels: ArrayLike<number>,
+  size: number,
+  bottom: number,
+): Float32Array {
+  const { upper, weight } = depthWeights(levels, size, bottom);
+  return Float32Array.from(
+    upper,
+    (k, step) => (k + weight[step] + 0.5) / levels.length,
+  );
+}

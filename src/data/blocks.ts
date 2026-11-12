@@ -8,7 +8,7 @@
 
 import type { ZarrSource } from "@fxi/zartigl/engine";
 import type { Box } from "./box";
-import { depthWeights, interpolate } from "./depth";
+import { interpolate } from "./depth";
 
 /** A store variable the cube reads, with its int16 precision. */
 export interface CubeVariable {
@@ -31,8 +31,10 @@ export interface Block {
   months: number;
   /** Degrees per code. */
   scale: number;
-  /** Codes in [month][level][lat][lon] order. */
+  /** Codes in [month][level][lat][lon] order (empty for a step of a field store). */
   codes: Int16Array;
+  /** A step of a field store: decoded values in [level][lat][lon] order, NaN where missing. */
+  floats?: Float32Array;
 }
 
 export interface BlockProgress {
@@ -137,68 +139,175 @@ export async function loadBlock(
   return { index, start, months, scale: variable.scale, codes };
 }
 
-/** A month of a block, resampled on the regular depth grid. */
-export interface Volume {
-  cols: number;
-  rows: number;
-  steps: number;
-  /** °C in [step][lat][lon] order; NaN where missing. */
-  values: Float32Array;
-  /** Departure from the 1991–2020 climatology, same layout, when the anomaly is shown. */
-  anomaly?: Float32Array;
+/**
+ * Reads time step `t` of a field store (timeChunked.zarr), where one chunk
+ * holds every level of the grid for one step: [1][level][lat][lon]. The
+ * decoded floats are kept as they are when the box is the whole chunk (no
+ * copy), else the box's cells are copied out.
+ */
+export async function loadStep(
+  reader: ChunkReader,
+  variable: CubeVariable,
+  box: Box,
+  t: number,
+  chunk: { latitude: number; longitude: number },
+): Promise<Block> {
+  const rows = box.lat.index.length;
+  const cols = box.lon.index.length;
+  const levels = box.depth.length;
+  const plane = chunk.latitude * chunk.longitude;
+  const block = (floats: Float32Array): Block => ({
+    index: t,
+    start: t,
+    months: 1,
+    scale: variable.scale,
+    codes: new Int16Array(0),
+    floats,
+  });
+  if (box.tiles.length === 1 && isWhole(box, chunk)) {
+    const { data } = await reader.fetchChunkResult(variable.name, [t, 0, 0, 0]);
+    return block(
+      data.length === levels * plane ? data : data.subarray(0, levels * plane),
+    );
+  }
+  const floats = new Float32Array(levels * rows * cols).fill(NaN);
+  await Promise.all(
+    box.tiles.map(async ([tileLat, tileLon]) => {
+      const { data } = await reader.fetchChunkResult(variable.name, [
+        t,
+        0,
+        tileLat,
+        tileLon,
+      ]);
+      for (let k = 0; k < levels; k++) {
+        for (let r = 0; r < rows; r++) {
+          if (box.lat.chunk[r] !== tileLat) {
+            continue;
+          }
+          const y = box.lat.offset[r];
+          for (let c = 0; c < cols; c++) {
+            if (box.lon.chunk[c] === tileLon) {
+              floats[(k * rows + r) * cols + c] =
+                data[k * plane + y * chunk.longitude + box.lon.offset[c]];
+            }
+          }
+        }
+      }
+    }),
+  );
+  return block(floats);
+}
+
+/** Whether the box is a whole chunk in store order: its cells need no copy. */
+function isWhole(
+  box: Box,
+  chunk: { latitude: number; longitude: number },
+): boolean {
+  const identity = (index: Int32Array, size: number) =>
+    index.length === size && index.every((value, i) => value === i);
+  return (
+    identity(box.lat.index, chunk.latitude) &&
+    identity(box.lon.index, chunk.longitude)
+  );
 }
 
 /**
- * Resamples month `m` of a block onto `steps` depths from 0 to `bottom` m,
- * with the same month of an anomaly block when given (both blocks share the time chunk).
- * `weights` can be shared between calls (see depthWeights).
+ * One time step of the cube on the store's own levels: what the GPU samples
+ * (depth is resampled in the shader) and what the sections and picks read.
+ */
+export interface Volume {
+  cols: number;
+  rows: number;
+  levels: number;
+  /** Level centres, metres, shallow to deep. */
+  depths: Float64Array;
+  /** Values in [level][lat][lon] order; NaN where missing. */
+  values: Float32Array;
+  /** Departure from the climatology, same layout, when the anomaly is shown. */
+  anomaly?: Float32Array;
+  /** Eastward and northward velocity, m/s, same layout, when particles are shown. */
+  u?: Float32Array;
+  v?: Float32Array;
+}
+
+/** Step `m` of a block (index in the block) as floats on the native levels. */
+function stepValues(block: Block, box: Box, m: number): Float32Array {
+  if (block.floats) {
+    return block.floats;
+  }
+  const size = box.depth.length * box.lat.index.length * box.lon.index.length;
+  const out = new Float32Array(size);
+  const codes = block.codes.subarray(m * size, (m + 1) * size);
+  for (let i = 0; i < size; i++) {
+    const code = codes[i];
+    out[i] = code === MISSING ? NaN : code * block.scale;
+  }
+  return out;
+}
+
+/**
+ * Step `m` of a block (index in the block), with the same step of an anomaly
+ * block and of the velocity blocks when given.
  */
 export function monthVolume(
   block: Block,
   box: Box,
   m: number,
-  steps: number,
-  bottom: number,
-  weights = depthWeights(box.depth, steps, bottom),
   anomaly?: Block,
+  velocity?: { u: Block; v: Block },
 ): Volume {
+  const at = (other: Block) => m - other.start + block.start;
   return {
     cols: box.lon.index.length,
     rows: box.lat.index.length,
-    steps,
-    values: resample(block, box, m, steps, weights),
-    ...(anomaly ? { anomaly: resample(anomaly, box, m, steps, weights) } : {}),
+    levels: box.depth.length,
+    depths: box.depth,
+    values: stepValues(block, box, m),
+    ...(anomaly ? { anomaly: stepValues(anomaly, box, at(anomaly)) } : {}),
+    ...(velocity
+      ? {
+          u: stepValues(velocity.u, box, at(velocity.u)),
+          v: stepValues(velocity.v, box, at(velocity.v)),
+        }
+      : {}),
   };
 }
 
-/** Month `m` of a block on `steps` depths, in [step][lat][lon] order. */
-function resample(
-  block: Block,
-  box: Box,
-  m: number,
-  steps: number,
-  weights: ReturnType<typeof depthWeights>,
-): Float32Array {
-  const plane = box.lat.index.length * box.lon.index.length;
-  const levels = box.depth.length;
-  const values = new Float32Array(steps * plane);
-  const base = m * levels * plane;
-  const decode = (code: number) =>
-    code === MISSING ? NaN : code * block.scale;
-  for (let step = 0; step < steps; step++) {
-    const upper = base + weights.upper[step] * plane;
-    const lower = base + weights.lower[step] * plane;
-    const weight = weights.weight[step];
-    const out = step * plane;
-    for (let i = 0; i < plane; i++) {
-      values[out + i] = interpolate(
-        decode(block.codes[upper + i]),
-        decode(block.codes[lower + i]),
-        weight,
-      );
-    }
+/** The two levels around `depth` and the weight of the deeper one (see depthWeights). */
+export function levelAt(
+  depths: ArrayLike<number>,
+  depth: number,
+): [number, number, number] {
+  const last = depths.length - 1;
+  if (depth <= depths[0]) {
+    return [0, 0, 0];
   }
-  return values;
+  if (depth >= depths[last]) {
+    return [last, last, 0];
+  }
+  let k = 0;
+  while (k < last - 1 && depths[k + 1] < depth) {
+    k++;
+  }
+  return [k, k + 1, (depth - depths[k]) / (depths[k + 1] - depths[k])];
+}
+
+/** A field of a volume at cell (c, r) and a depth, interpolated between levels; NaN where missing. */
+export function sampleAt(
+  volume: Volume,
+  field: Float32Array,
+  c: number,
+  r: number,
+  depth: number,
+): number {
+  const [upper, lower, weight] = levelAt(volume.depths, depth);
+  const plane = volume.cols * volume.rows;
+  const i = r * volume.cols + c;
+  return interpolate(
+    field[upper * plane + i],
+    field[lower * plane + i],
+    weight,
+  );
 }
 
 /** Keeps the most recently used blocks and loads each one once. */
@@ -252,5 +361,10 @@ export class BlockCache {
   /** Indices of the blocks in memory. */
   loaded(): number[] {
     return [...this.blocks.keys()];
+  }
+
+  /** Indices of the blocks being read. */
+  pendingKeys(): number[] {
+    return [...this.pending.keys()];
   }
 }

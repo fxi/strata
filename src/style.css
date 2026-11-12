@@ -21,6 +21,10 @@
   box-sizing: border-box;
 }
 
+[hidden] {
+  display: none !important;
+}
+
 html,
 body {
   margin: 0;
@@ -53,8 +57,8 @@ output {
     );
   grid-template-rows: auto auto minmax(0, 1fr) auto;
   grid-template-areas:
+    "appbar appbar appbar"
     "meta meta meta"
-    "bar bar bar"
     "left view right"
     "time time time";
   gap: var(--gap);
@@ -127,34 +131,64 @@ output {
 
 .meta-dataset {
   display: grid;
-  grid-template-columns: auto auto;
+  grid-template-columns: auto minmax(0, auto);
+  min-width: 0;
   column-gap: 8px;
   font-size: 11.5px;
   align-content: start;
+}
+
+.meta-dataset dd {
+  overflow-wrap: anywhere;
 }
 
 .meta-dataset dt::after {
   content: ":";
 }
 
-.bar {
-  grid-area: bar;
+/* App bar: the context, then the data and video tools. */
+.appbar {
+  grid-area: appbar;
   display: flex;
   flex-wrap: wrap;
+  align-items: center;
   justify-content: space-between;
-  gap: 6px 20px;
-  padding: 6px 12px;
-  font-size: 12.5px;
+  gap: 8px 16px;
+  margin: -4px 0 -2px;
 }
 
-.bar strong {
-  font-weight: 500;
-  letter-spacing: 0.04em;
+.appbar-start,
+.appbar-end {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
 }
 
-.bar span {
-  color: var(--ink);
-  font-size: 11.5px;
+.brand {
+  font-weight: 600;
+  letter-spacing: 0.3em;
+  font-size: 12px;
+}
+
+.bar-button {
+  height: 28px;
+  border: 1px solid var(--rule);
+  background: none;
+  padding: 0 10px;
+  font-size: 11px;
+  letter-spacing: 0.06em;
+  cursor: pointer;
+  white-space: nowrap;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.bar-button:hover,
+.bar-button[aria-expanded="true"] {
+  background: var(--ink);
+  color: var(--ground);
 }
 
 /* Side columns. */
@@ -578,17 +612,42 @@ input[type="range"]:focus-visible {
 
 .transport {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
-  gap: 6px;
+  gap: 8px;
+}
+
+/* Joined controls of one height: shared borders, no gaps. */
+.transport .group {
+  display: flex;
+  height: 32px;
+  border: 1px solid var(--rule);
+}
+
+.transport .group > * + * {
+  border-left: 1px solid var(--rule);
 }
 
 .transport button {
-  width: 38px;
-  height: 32px;
-  border: 1px solid var(--rule);
+  width: 36px;
+  height: 100%;
+  border: 0;
   display: grid;
   place-items: center;
   padding: 0;
+}
+
+.transport button.play {
+  width: 44px;
+}
+
+.transport .time-chip {
+  display: grid;
+  place-items: center;
+  padding: 0 10px;
+  font-size: 11px;
+  white-space: nowrap;
+  min-width: 13ch;
 }
 
 .transport button svg {
@@ -600,23 +659,13 @@ input[type="range"]:focus-visible {
 }
 
 .transport select {
-  height: 32px;
-  border: 1px solid var(--rule);
+  height: 100%;
+  border: 0;
   background: var(--ground);
+  padding: 0 6px;
 }
 
-.transport .chip {
-  padding: 6px 8px;
-}
-
-.transport .data-button {
-  width: auto;
-  padding: 0 10px;
-  font-size: 11px;
-  letter-spacing: 0.06em;
-}
-
-/* Data manager: a popover over the time bar, a sheet on phones. */
+/* Data manager: a popover under its button in the app bar, a sheet on phones. */
 .data-manager {
   position: fixed;
   z-index: 20;
@@ -748,14 +797,6 @@ input[type="range"]:focus-visible {
     font-size: 10.5px;
   }
 
-  .bar {
-    font-size: 11px;
-  }
-
-  .bar span {
-    font-size: 10.5px;
-  }
-
   .view {
     order: 1;
   }
@@ -810,9 +851,25 @@ input[type="range"]:focus-visible {
     justify-content: space-between;
   }
 
-  .transport button {
-    width: 44px;
+  .transport .group {
     height: 40px;
+  }
+
+  .transport .group:first-child {
+    flex: 1 1 100%;
+  }
+
+  .transport .group:first-child button {
+    flex: 1;
+    width: auto;
+  }
+
+  .transport .group:last-child {
+    flex: 1 1 100%;
+  }
+
+  .transport .time-chip {
+    flex: 1;
   }
 
   .side-left {
@@ -825,4 +882,156 @@ input[type="range"]:focus-visible {
   .cube-label {
     transition: none;
   }
+}
+
+/* Context dialog. */
+
+.context-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 30;
+  display: grid;
+  place-items: start center;
+  padding: max(48px, env(safe-area-inset-top)) 8px 8px;
+  background: rgba(0, 0, 0, 0.6);
+}
+
+.context-picker {
+  width: min(640px, 100%);
+  max-height: calc(100vh - 64px);
+  overflow: auto;
+  background: var(--ground);
+  border: 1px solid var(--ink);
+  padding: 10px 12px 12px;
+  display: grid;
+  gap: 10px;
+  box-shadow: 0 8px 30px rgba(0, 0, 0, 0.6);
+}
+
+.context-picker header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.context-picker button,
+.context-picker .context-actions a {
+  border: 1px solid var(--rule);
+  background: none;
+  padding: 3px 9px;
+  cursor: pointer;
+  font-size: 11px;
+  color: var(--ink);
+  text-decoration: none;
+}
+
+.context-picker button:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+
+.context-list {
+  display: grid;
+  gap: 8px;
+}
+
+.context-card {
+  display: grid;
+  gap: 3px;
+  padding: 8px 10px;
+  border: 1px solid var(--rule);
+  color: var(--ink);
+  text-decoration: none;
+}
+
+.context-card:hover {
+  border-color: var(--ink);
+  background: var(--panel);
+}
+
+.context-card.is-current {
+  border-color: var(--ink);
+  box-shadow: inset 3px 0 0 var(--ink);
+}
+
+.context-card span {
+  color: var(--muted);
+}
+
+.context-card code {
+  color: var(--faint);
+  font-size: 10.5px;
+}
+
+.context-actions,
+.context-url {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  align-items: center;
+}
+
+.context-url input {
+  flex: 1 1 220px;
+  min-width: 0;
+  border: 1px solid var(--rule);
+  background: none;
+  color: var(--ink);
+  padding: 3px 6px;
+  font: inherit;
+}
+
+.context-message {
+  margin: 0;
+  white-space: pre-wrap;
+  font: inherit;
+  color: var(--muted);
+}
+
+.context-message.is-error {
+  color: var(--warm);
+}
+
+.muted {
+  color: var(--muted);
+}
+
+/* Video export. */
+.video-form {
+  display: grid;
+  gap: 8px;
+}
+
+.video-form label {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 10px;
+  color: var(--muted);
+  font-size: 11px;
+}
+
+.video-form input,
+.video-form select {
+  border: 1px solid var(--rule);
+  background: var(--ground);
+  color: var(--ink);
+  font: inherit;
+  padding: 2px 6px;
+  max-width: 60%;
+}
+
+.video-form input {
+  width: 90px;
+}
+
+.video-export progress {
+  width: 100%;
+  accent-color: var(--ink);
+}
+
+/* Points of interest in 3D. */
+.cube-label.is-poi {
+  font-size: 10px;
+  color: #ffdb73;
 }

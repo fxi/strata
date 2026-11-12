@@ -1,7 +1,7 @@
 /**
- * The data cube: which cells of the GODAS grid it holds and where they sit in
- * the store's chunks. Longitudes are unwrapped east of 0 (120…280), so the box
- * crosses the date line without a break.
+ * The data cube: which cells of the store's grid it holds and where they sit
+ * in the store's chunks. With `lonWrap`, longitudes are unwrapped east of 0
+ * (120…280), so a box crosses the date line without a break.
  */
 
 /** West, east (unwrapped, degrees east), south, north and deepest level of the cube. */
@@ -11,6 +11,8 @@ export interface BoxSpec {
   south: number;
   north: number;
   maxDepth: number;
+  /** Longitudes east of 0 (0–360). */
+  lonWrap?: boolean;
 }
 
 /**
@@ -25,6 +27,7 @@ export const PACIFIC_BOX: BoxSpec = {
   south: -14.5,
   north: 15,
   maxDepth: 305,
+  lonWrap: true,
 };
 
 /** The Niño 3.4 region, 170° W–120° W, 5° S–5° N, unwrapped. */
@@ -51,6 +54,27 @@ export interface Box {
 /** Longitude east of 0, so 120…280 is one interval. */
 export function unwrap(longitude: number): number {
   return longitude < 0 ? longitude + 360 : longitude;
+}
+
+/** The longitude in the box's convention: unwrapped when the box wraps. */
+export function boxLongitude(
+  spec: { lonWrap?: boolean },
+  longitude: number,
+): number {
+  return spec.lonWrap ? unwrap(longitude) : longitude;
+}
+
+/**
+ * The deepest level to keep for a cube down to `bottom` metres: the first
+ * level at or below it, so the regular grid interpolates to the bottom.
+ */
+export function levelLimit(levels: ArrayLike<number>, bottom: number): number {
+  for (let i = 0; i < levels.length; i++) {
+    if (levels[i] >= bottom) {
+      return levels[i];
+    }
+  }
+  return levels.length ? levels[levels.length - 1] : bottom;
 }
 
 /** Back to −180…180, for labels. */
@@ -94,7 +118,7 @@ export function createBox(
   const lon = axis(
     coords.longitude,
     (value) => {
-      const east = unwrap(value);
+      const east = boxLongitude(spec, value);
       return east >= spec.west - EPSILON && east <= spec.east + EPSILON
         ? east
         : null;

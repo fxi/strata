@@ -1,6 +1,7 @@
 /**
  * The DATA panel: what the browser keeps of the cube between sessions, one
- * row per five-year block (the store's time chunk). Each row shows the chunks
+ * row per group of time steps (a five-year block of a point-series store, a
+ * month of a 3-hourly field store). Each row shows the chunks
  * on disk for the variables of the current mode, their size and date, and
  * downloads or removes the block. Playback fills the cache on its own: every
  * chunk the cube reads is kept (see lib/chunkStore.ts).
@@ -38,6 +39,8 @@ export interface DataManagerOptions {
   ) => Promise<void>;
   /** Called with the blocks complete on disk after each refresh. */
   onChange: (complete: Set<number>) => void;
+  /** Offer "Download all" (false for archives too large to keep whole). */
+  bulk?: boolean;
 }
 
 interface BlockStats {
@@ -208,6 +211,7 @@ export class DataManager {
     // Phones: the time bar is mid-page, so the panel is a sheet along the bottom of the screen.
     if (window.innerWidth <= 760) {
       style.left = "8px";
+      style.top = "auto";
       style.bottom = "8px";
       style.maxHeight = `${Math.round(window.innerHeight * 0.8)}px`;
       return;
@@ -216,12 +220,13 @@ export class DataManager {
     const width = this.panel.offsetWidth;
     const left = Math.max(
       12,
-      Math.min(button.left, window.innerWidth - width - 12),
+      Math.min(button.right - width, window.innerWidth - width - 12),
     );
     style.left = `${left}px`;
-    style.bottom = `${Math.max(12, window.innerHeight - button.top + 8)}px`;
-    // Never above the top of the screen: the rows scroll instead.
-    style.maxHeight = `${Math.max(160, Math.min(560, button.top - 20))}px`;
+    style.top = `${button.bottom + 8}px`;
+    style.bottom = "auto";
+    // Never below the screen: the rows scroll instead.
+    style.maxHeight = `${Math.max(160, Math.min(560, window.innerHeight - button.bottom - 20))}px`;
   }
 
   private render(): void {
@@ -257,6 +262,9 @@ export class DataManager {
     close.type = "button";
     close.setAttribute("aria-label", "Close");
     close.addEventListener("click", () => this.close());
+    if (this.options.bulk === false && !busy) {
+      all.hidden = true;
+    }
     actions.append(all, clear, close);
     header.append(actions);
 

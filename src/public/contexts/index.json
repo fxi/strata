@@ -1,0 +1,14 @@
+[
+  {
+    "id": "enso-nino-3-4",
+    "title": "Pacific Thermocline — ENSO",
+    "description": "Monthly GODAS ocean temperature of the equatorial Pacific since 1980, 0–300 m, with the Niño 3.4 box and its El Niño / La Niña episodes.",
+    "file": "enso-nino-3-4.json"
+  },
+  {
+    "id": "leman-lake",
+    "title": "Lake Geneva — Léman",
+    "description": "Lake Geneva every 3 hours since December 2018, surface to 310 m: water temperature, the thermocline and the currents (Alplakes, Eawag).",
+    "file": "leman-lake.json"
+  }
+]

@@ -5,7 +5,7 @@
  * ONI in timing and sign, but not the official index (which uses ERSST).
  */
 
-import { NINO34, unwrap } from "./box";
+import { NINO34, boxLongitude } from "./box";
 import type { ChunkReader } from "./blocks";
 import { POTTMP } from "./blocks";
 
@@ -14,27 +14,39 @@ export const BASE_PERIOD: [number, number] = [1991, 2020];
 export const THRESHOLD = 0.5;
 export const MIN_RUN = 5;
 
+/** A surface region, in the cube's longitude convention. */
+export interface Region {
+  west: number;
+  east: number;
+  south: number;
+  north: number;
+  lonWrap?: boolean;
+}
+
+const NINO34_REGION: Region = { ...NINO34, lonWrap: true };
+
 interface Cell {
   y: number;
   x: number;
   weight: number;
 }
 
-/** The Niño 3.4 cells of one chunk, with their area weights. */
+/** The region's cells of each chunk, with their area weights. */
 function ninoCells(
   latitude: ArrayLike<number>,
   longitude: ArrayLike<number>,
   tile: { latitude: number; longitude: number },
+  region: Region,
 ): Map<string, Cell[]> {
   const tiles = new Map<string, Cell[]>();
   for (let i = 0; i < latitude.length; i++) {
     const lat = latitude[i];
-    if (lat < NINO34.south - 1e-3 || lat > NINO34.north + 1e-3) {
+    if (lat < region.south - 1e-3 || lat > region.north + 1e-3) {
       continue;
     }
     for (let j = 0; j < longitude.length; j++) {
-      const lon = unwrap(longitude[j]);
-      if (lon < NINO34.west - 1e-3 || lon > NINO34.east + 1e-3) {
+      const lon = boxLongitude(region, longitude[j]);
+      if (lon < region.west - 1e-3 || lon > region.east + 1e-3) {
         continue;
       }
       const key = `${Math.floor(i / tile.latitude)}.${Math.floor(j / tile.longitude)}`;
@@ -50,15 +62,17 @@ function ninoCells(
   return tiles;
 }
 
-/** The monthly Niño 3.4 box mean at 5 m, every month of the store. */
+/** The monthly box mean of the first level (5 m for GODAS), every month of the store. */
 export async function ninoSeries(
   reader: ChunkReader,
   coords: { latitude: ArrayLike<number>; longitude: ArrayLike<number> },
   totalMonths: number,
   timeChunk: number,
   tile: { latitude: number; longitude: number },
+  region: Region = NINO34_REGION,
+  variable: string = POTTMP.name,
 ): Promise<Float64Array> {
-  const tiles = ninoCells(coords.latitude, coords.longitude, tile);
+  const tiles = ninoCells(coords.latitude, coords.longitude, tile, region);
   const sums = new Float64Array(totalMonths);
   const weights = new Float64Array(totalMonths);
   const blocks = Math.ceil(totalMonths / timeChunk);
@@ -67,7 +81,7 @@ export async function ninoSeries(
     for (const [key, cells] of tiles) {
       const [y, x] = key.split(".").map(Number);
       tasks.push(
-        reader.fetchChunkResult(POTTMP.name, [b, 0, y, x]).then(({ data }) => {
+        reader.fetchChunkResult(variable, [b, 0, y, x]).then(({ data }) => {
           const months = Math.min(timeChunk, totalMonths - b * timeChunk);
           for (let m = 0; m < months; m++) {
             for (const cell of cells) {

@@ -8,11 +8,14 @@
  */
 
 import { contours } from "d3";
-import { NINO34, latLabel, lonLabel } from "../data/box";
-import type { Volume } from "../data/blocks";
+import { latLabel, lonLabel } from "../data/box";
+import { levelAt, type Volume } from "../data/blocks";
+import { depthWeights, interpolate, type DepthWeights } from "../data/depth";
 import { rampColor } from "../palettes";
-import { BOTTOM, type Space } from "../gl/space";
-import type { Polyline } from "./coast";
+import type { Space } from "../gl/space";
+import type { BoxOverlay } from "../context/types";
+import { axisTicks } from "./labels";
+import type { Polyline } from "./overlays";
 
 export type SliceKind = "top" | "eq" | "side";
 
@@ -25,17 +28,32 @@ export interface Cursor {
 export interface SliceStyle {
   ramp: Uint8Array;
   domain: [number, number];
-  /** Shade the anomaly and keep only the 20 °C isotherm of the temperature. */
+  /** Shade the anomaly and keep only the main isotherm of the temperature. */
   anomaly: boolean;
   contours: boolean;
   roi: boolean;
   coast: boolean;
 }
 
+/** Regular depth rows of the EQ and SIDE sections. */
+const SECTION_STEPS = 96;
 const FONT = '10px "IBM Plex Mono", ui-monospace, monospace';
 const MARGIN = { left: 44, right: 10, top: 8, bottom: 22 };
-const ISO_STEP = 2;
-const ISO_MAIN = 20;
+
+/** Isotherms of the sections: every `step` from `range[0]`, `main` drawn stronger. */
+export interface IsoLines {
+  main: number;
+  step: number;
+  range: [number, number];
+}
+
+export interface SliceOptions {
+  boxes: BoxOverlay[];
+  iso: IsoLines;
+  unit: string;
+  /** Leave cells without data transparent (lakes) instead of dark land. */
+  clearLand?: boolean;
+}
 
 interface Axis {
   /** Data coordinate at the plot's left/top and right/bottom edges. */
@@ -52,11 +70,14 @@ export class SlicePanel {
   private cursor: Cursor = { lon: 220, lat: 0, depth: 50 };
   private style: SliceStyle | null = null;
   private hover: [number, number] | null = null;
+  private lines: Polyline[] = [];
+  /** Depth weights of the sections, for the volume's levels. */
+  private weights: { levels: Float64Array; table: DepthWeights } | null = null;
 
   constructor(
     readonly kind: SliceKind,
     private space: Space,
-    private coast: Polyline[],
+    private options: SliceOptions,
     private readout: HTMLElement,
     private onPick: (cursor: Partial<Cursor>) => void,
   ) {
@@ -96,27 +117,45 @@ export class SlicePanel {
     });
   }
 
+  /** Surface lines of the TOP section (coastlines, shore). */
+  setLines(lines: Polyline[]): void {
+    this.lines = lines;
+    this.draw();
+  }
+
   /** Horizontal and vertical axes of this section. */
   private axes(): [Axis, Axis] {
     const { space } = this;
+    // Round ticks clear of the plot's edges.
+    const inner = (from: number, to: number, count: number) => {
+      const { values, digits } = axisTicks(from, to, count);
+      const margin = 0.05 * (to - from);
+      return {
+        values: values.filter((v) => v > from + margin && v < to - margin),
+        digits,
+      };
+    };
+    const lon = inner(space.west, space.east, 8);
+    const lat = inner(space.south, space.north, 6);
+    const depth = axisTicks(0, space.bottom, 6);
     const lonAxis: Axis = {
       from: space.west,
       to: space.east,
-      ticks: [140, 160, 180, 200, 220, 240, 260],
-      label: (v) => lonLabel(v),
+      ticks: lon.values,
+      label: (v) => lonLabel(v, lon.digits),
     };
     const latAxis: Axis = {
       from: space.north,
       to: space.south,
-      ticks: [10, 5, 0, -5, -10],
-      label: (v) => latLabel(v),
+      ticks: [...lat.values].reverse(),
+      label: (v) => latLabel(v, lat.digits),
     };
     const latAcross: Axis = { ...latAxis, from: space.south, to: space.north };
     const depthAxis: Axis = {
       from: 0,
-      to: BOTTOM,
-      ticks: [0, 50, 100, 150, 200, 250, 300],
-      label: (v) => `${v}`,
+      to: space.bottom,
+      ticks: depth.values,
+      label: (v) => v.toFixed(depth.digits),
     };
     if (this.kind === "top") {
       return [lonAxis, latAxis];
@@ -129,11 +168,18 @@ export class SlicePanel {
     const w = this.canvas.width / ratio;
     const h = this.canvas.height / ratio;
     return {
-      x: MARGIN.left,
+      x: this.left(),
       y: MARGIN.top,
-      w: Math.max(1, w - MARGIN.left - MARGIN.right),
+      w: Math.max(1, w - this.left() - MARGIN.right),
       h: Math.max(1, h - MARGIN.top - MARGIN.bottom),
     };
+  }
+
+  /** Left margin: room for the widest vertical tick label (about 6.2 px per character). */
+  private left(): number {
+    const [, v] = this.axes();
+    const chars = Math.max(0, ...v.ticks.map((tick) => v.label(tick).length));
+    return Math.max(MARGIN.left, Math.ceil(chars * 6.2 + 12));
   }
 
   /** Data coordinates under a CSS pixel of the canvas, or null outside the plot. */
@@ -183,45 +229,69 @@ export class SlicePanel {
     if (!volume) {
       return null;
     }
-    const { cols, rows, steps } = volume;
+    const { cols, rows } = volume;
     const values =
       field === "anomaly" && volume.anomaly ? volume.anomaly : volume.values;
     const { space, cursor } = this;
     const plane = cols * rows;
     if (this.kind === "top") {
-      const step = Math.round((cursor.depth / BOTTOM) * (steps - 1));
+      // The plane at the depth cursor, between the two levels around it.
+      const [upper, lower, weight] = levelAt(volume.depths, cursor.depth);
       const out = new Float32Array(plane);
       for (let r = 0; r < rows; r++) {
         // North at the top.
-        out.set(
-          values.subarray(
-            step * plane + (rows - 1 - r) * cols,
-            step * plane + (rows - r) * cols,
-          ),
-          r * cols,
-        );
+        const source = (rows - 1 - r) * cols;
+        for (let c = 0; c < cols; c++) {
+          out[r * cols + c] = interpolate(
+            values[upper * plane + source + c],
+            values[lower * plane + source + c],
+            weight,
+          );
+        }
       }
       return { values: out, width: cols, height: rows };
     }
-    if (this.kind === "eq") {
-      const row = SlicePanel.cell(cursor.lat, space.south, space.north, rows);
-      const out = new Float32Array(cols * steps);
-      for (let s = 0; s < steps; s++) {
-        out.set(
-          values.subarray(s * plane + row * cols, s * plane + (row + 1) * cols),
-          s * cols,
+    // Sections: the levels resampled on regular depths, for this slice only.
+    const steps = SECTION_STEPS;
+    if (this.weights?.levels !== volume.depths) {
+      this.weights = {
+        levels: volume.depths,
+        table: depthWeights(volume.depths, steps, space.bottom),
+      };
+    }
+    const { upper, lower, weight } = this.weights.table;
+    const across = this.kind === "eq" ? cols : rows;
+    const at =
+      this.kind === "eq"
+        ? (() => {
+            const row = SlicePanel.cell(
+              cursor.lat,
+              space.south,
+              space.north,
+              rows,
+            );
+            return (k: number, i: number) => values[k * plane + row * cols + i];
+          })()
+        : (() => {
+            const col = SlicePanel.cell(
+              cursor.lon,
+              space.west,
+              space.east,
+              cols,
+            );
+            return (k: number, i: number) => values[k * plane + i * cols + col];
+          })();
+    const out = new Float32Array(across * steps);
+    for (let s = 0; s < steps; s++) {
+      for (let i = 0; i < across; i++) {
+        out[s * across + i] = interpolate(
+          at(upper[s], i),
+          at(lower[s], i),
+          weight[s],
         );
       }
-      return { values: out, width: cols, height: steps };
     }
-    const col = SlicePanel.cell(cursor.lon, space.west, space.east, cols);
-    const out = new Float32Array(rows * steps);
-    for (let s = 0; s < steps; s++) {
-      for (let r = 0; r < rows; r++) {
-        out[s * rows + r] = values[s * plane + r * cols + col];
-      }
-    }
-    return { values: out, width: rows, height: steps };
+    return { values: out, width: across, height: steps };
   }
 
   /** The value under the pointer, as text. */
@@ -260,11 +330,12 @@ export class SlicePanel {
           ? `${lonLabel(point[0], 1)} ${Math.round(point[1])} m`
           : `${latLabel(point[0], 1)} ${Math.round(point[1])} m`;
     const departure = departures?.values[row * grid.width + col];
+    const unit = this.options.unit;
     const text = Number.isNaN(value)
       ? "—"
       : departure === undefined || Number.isNaN(departure)
-        ? `${value.toFixed(2)} °C`
-        : `${departure >= 0 ? "+" : ""}${departure.toFixed(2)} °C (${value.toFixed(2)} °C)`;
+        ? `${value.toFixed(2)} ${unit}`
+        : `${departure >= 0 ? "+" : ""}${departure.toFixed(2)} ${unit} (${value.toFixed(2)} ${unit})`;
     this.readout.textContent = `${title} · ${where} · ${text}`;
   }
 
@@ -313,7 +384,9 @@ export class SlicePanel {
       shaded.values.forEach((value, i) => {
         // Land and sea floor follow the temperature, as in 3D.
         if (Number.isNaN(grid.values[i]) || Number.isNaN(value)) {
-          pixels.data.set([33, 34, 36, 255], i * 4);
+          if (!this.options.clearLand) {
+            pixels.data.set([33, 34, 36, 255], i * 4);
+          }
           return;
         }
         const [r, g, b] = rampColor(style.ramp, (value - low) / (high - low));
@@ -333,7 +406,7 @@ export class SlicePanel {
     if (this.kind === "top" && style?.coast) {
       ctx.strokeStyle = "rgba(240, 242, 245, 0.85)";
       ctx.lineWidth = 0.8;
-      for (const line of this.coast) {
+      for (const line of this.lines) {
         ctx.beginPath();
         line.forEach(([lon, lat], i) => {
           const [x, y] = this.toPixel(lon, lat);
@@ -363,10 +436,15 @@ export class SlicePanel {
     const filled = Array.from(grid.values, (value) =>
       Number.isNaN(value) ? -1e3 : value,
     );
-    // Over the anomaly, only the 20 °C isotherm: the thermocline on the departures.
+    // Over the anomaly, only the main isotherm: the thermocline on the departures.
+    const { main: isoMain, step: isoStep, range } = this.options.iso;
     const thresholds: number[] = [];
-    for (let t = 2; t <= 32; t += ISO_STEP) {
-      if (!mainOnly || t === ISO_MAIN) {
+    if (mainOnly || !(isoStep > 0)) {
+      thresholds.push(isoMain);
+    } else {
+      const first =
+        isoMain - Math.floor((isoMain - range[0]) / isoStep) * isoStep;
+      for (let t = first; t <= range[1] + 1e-9; t += isoStep) {
         thresholds.push(t);
       }
     }
@@ -375,7 +453,7 @@ export class SlicePanel {
     for (const contour of contours()
       .size([grid.width, grid.height])
       .thresholds(thresholds)(filled)) {
-      const main = contour.value === ISO_MAIN;
+      const main = Math.abs(contour.value - isoMain) < 1e-9;
       ctx.strokeStyle = main
         ? "rgba(255, 255, 255, 0.95)"
         : "rgba(255, 255, 255, 0.35)";
@@ -399,27 +477,29 @@ export class SlicePanel {
   }
 
   private drawRoi(ctx: CanvasRenderingContext2D): void {
-    const roiDepth = BOTTOM;
-    const corners: Array<[number, number]> =
-      this.kind === "top"
-        ? [
-            [NINO34.west, NINO34.north],
-            [NINO34.east, NINO34.south],
-          ]
-        : this.kind === "eq"
-          ? [
-              [NINO34.west, 0],
-              [NINO34.east, roiDepth],
-            ]
-          : [
-              [NINO34.south, 0],
-              [NINO34.north, roiDepth],
-            ];
-    const [a, b] = corners.map(([u, v]) => this.toPixel(u, v));
     ctx.setLineDash([5, 4]);
     ctx.strokeStyle = "rgba(255, 255, 255, 0.95)";
     ctx.lineWidth = 1;
-    ctx.strokeRect(a[0], a[1], b[0] - a[0], b[1] - a[1]);
+    for (const box of this.options.boxes) {
+      const [top, bottom] = box.depth ?? [0, this.space.bottom];
+      const corners: Array<[number, number]> =
+        this.kind === "top"
+          ? [
+              [box.west, box.north],
+              [box.east, box.south],
+            ]
+          : this.kind === "eq"
+            ? [
+                [box.west, top],
+                [box.east, bottom],
+              ]
+            : [
+                [box.south, top],
+                [box.north, bottom],
+              ];
+      const [a, b] = corners.map(([u, v]) => this.toPixel(u, v));
+      ctx.strokeRect(a[0], a[1], b[0] - a[0], b[1] - a[1]);
+    }
     ctx.setLineDash([]);
   }
 

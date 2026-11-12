@@ -1,11 +1,19 @@
 /**
- * Monthly timeline, 1980 to the last stored month: years, the Niño 3.4
- * anomaly as bars (warm red, cold blue) over shaded El Niño / La Niña
- * episodes, a strip of the five-year data blocks (in memory, on disk,
- * loading, not loaded) and the playhead. Drag to scrub.
+ * Timeline of the store's time steps: years, an optional box index (the
+ * Niño 3.4 anomaly) as bars (warm red, cold blue) over shaded El Niño /
+ * La Niña episodes, a strip of the data groups (five-year blocks, months:
+ * in memory, on disk, loading, not loaded) and the playhead. Drag to scrub.
  */
 
 import type { Episode } from "../data/nino";
+import { rampColor } from "../palettes";
+
+/** A series drawn as a line (min/max per pixel column), colored by the palette. */
+export interface TimelineSeries {
+  values: Float32Array;
+  ramp: Uint8Array;
+  domain: [number, number];
+}
 
 const FONT = '10px "IBM Plex Mono", ui-monospace, monospace';
 const RANGE = 2.5;
@@ -15,16 +23,29 @@ const COLD = "rgba(72, 150, 255, 0.9)";
 /** In memory, being read, on disk only (cache), or to download. */
 export type BlockStatus = "loaded" | "loading" | "cached" | "missing";
 
+/** A run of time steps shown as one cell of the data strip. */
+export interface TimeGroup {
+  start: number;
+  end: number;
+}
+
 export class Timeline {
   readonly canvas: HTMLCanvasElement;
   private month = 0;
   private status: BlockStatus[] = [];
+  private series: TimelineSeries | null = null;
+  /** Min and max of the series per pixel column, for the current width. */
+  private envelope: {
+    width: number;
+    low: Float32Array;
+    high: Float32Array;
+  } | null = null;
 
   constructor(
     private times: number[],
-    private index: Float64Array,
+    private index: Float64Array | null,
     private episodes: Episode[],
-    private blockSize: number,
+    private groups: TimeGroup[],
     private onScrub: (month: number) => void,
   ) {
     this.canvas = document.createElement("canvas");
@@ -71,12 +92,99 @@ export class Timeline {
     this.draw();
   }
 
+  /** Shows a series instead of the index bars (null: none). */
+  setSeries(series: TimelineSeries | null): void {
+    this.series = series;
+    this.envelope = null;
+    this.draw();
+  }
+
+  private columns(w: number): { low: Float32Array; high: Float32Array } {
+    const columns = Math.max(1, Math.round(w));
+    if (this.envelope?.width === columns) {
+      return this.envelope;
+    }
+    const low = new Float32Array(columns).fill(NaN);
+    const high = new Float32Array(columns).fill(NaN);
+    const values = this.series!.values;
+    const last = Math.max(1, values.length - 1);
+    for (let i = 0; i < values.length; i++) {
+      const value = values[i];
+      if (value !== value) {
+        continue;
+      }
+      const c = Math.min(columns - 1, Math.floor((i / last) * columns));
+      if (!(low[c] <= value)) {
+        low[c] = value;
+      }
+      if (!(high[c] >= value)) {
+        high[c] = value;
+      }
+    }
+    this.envelope = { width: columns, low, high };
+    return this.envelope;
+  }
+
+  private drawSeries(
+    ctx: CanvasRenderingContext2D,
+    x: number,
+    w: number,
+    top: number,
+    bottom: number,
+  ): void {
+    const series = this.series!;
+    const { low, high } = this.columns(w);
+    let min = Infinity;
+    let max = -Infinity;
+    for (let c = 0; c < low.length; c++) {
+      if (low[c] === low[c]) {
+        min = Math.min(min, low[c]);
+        max = Math.max(max, high[c]);
+      }
+    }
+    if (!(min <= max)) {
+      return;
+    }
+    const pad = Math.max(0.5, (max - min) * 0.08);
+    const from = min - pad;
+    const to = max + pad;
+    const y = (value: number) =>
+      bottom - ((value - from) / (to - from)) * (bottom - top);
+    const [d0, d1] = series.domain;
+    const step = w / low.length;
+    for (let c = 0; c < low.length; c++) {
+      if (low[c] !== low[c]) {
+        continue;
+      }
+      const [r, g, b] = rampColor(
+        series.ramp,
+        ((low[c] + high[c]) / 2 - d0) / (d1 - d0),
+      );
+      ctx.fillStyle = `rgb(${r}, ${g}, ${b})`;
+      const top = y(high[c]);
+      ctx.fillRect(
+        x + c * step,
+        top,
+        Math.max(1, step),
+        Math.max(1.2, y(low[c]) - top),
+      );
+    }
+    // Range of the series, at the left edge.
+    ctx.fillStyle = "rgba(235, 237, 240, 0.7)";
+    ctx.textAlign = "left";
+    ctx.textBaseline = "top";
+    ctx.fillText(max.toFixed(1), x + 2, top);
+    ctx.textBaseline = "bottom";
+    ctx.fillText(min.toFixed(1), x + 2, bottom);
+  }
+
   setStatus(status: BlockStatus[]): void {
     this.status = status;
     this.draw();
   }
 
   resize(): void {
+    this.envelope = null;
     const ratio = window.devicePixelRatio || 1;
     const rect = this.canvas.getBoundingClientRect();
     this.canvas.width = Math.max(1, Math.round(rect.width * ratio));
@@ -111,36 +219,49 @@ export class Timeline {
       );
     }
 
-    // Years.
+    // Years: at the first step of each, labelled every five (every one over short spans).
     ctx.strokeStyle = "rgba(255, 255, 255, 0.35)";
     ctx.fillStyle = "rgba(235, 237, 240, 0.85)";
     ctx.textAlign = "center";
     ctx.textBaseline = "top";
+    const span =
+      new Date(this.times[this.times.length - 1] ?? 0).getUTCFullYear() -
+      new Date(this.times[0] ?? 0).getUTCFullYear();
+    const every = span <= 15 ? 1 : 5;
+    let previousYear = NaN;
     this.times.forEach((ms, i) => {
       const date = new Date(ms);
-      if (date.getUTCMonth() !== 0) {
+      const year = date.getUTCFullYear();
+      const first = year !== previousYear;
+      previousYear = year;
+      if (!first || (i === 0 && date.getUTCMonth() !== 0)) {
         return;
       }
-      const year = date.getUTCFullYear();
       const px = this.x(i);
-      const major = year % 5 === 0;
+      const major = year % every === 0;
       ctx.beginPath();
       ctx.moveTo(px, top - (major ? 4 : 2));
       ctx.lineTo(px, top);
       ctx.stroke();
-      if (major && (w > 500 || year % 10 === 0)) {
+      if (major && (w > 500 || year % (2 * every) === 0)) {
         ctx.fillText(String(year), px, 2);
       }
     });
 
+    if (this.series) {
+      this.drawSeries(ctx, x, w, top + 2, strip - 12);
+    }
+
     // Anomaly bars and zero line.
-    ctx.strokeStyle = "rgba(255, 255, 255, 0.25)";
-    ctx.beginPath();
-    ctx.moveTo(x, mid);
-    ctx.lineTo(x + w, mid);
-    ctx.stroke();
+    if (this.index) {
+      ctx.strokeStyle = "rgba(255, 255, 255, 0.25)";
+      ctx.beginPath();
+      ctx.moveTo(x, mid);
+      ctx.lineTo(x + w, mid);
+      ctx.stroke();
+    }
     const bar = Math.max(1, step * 0.8);
-    this.index.forEach((value, i) => {
+    this.index?.forEach((value, i) => {
       if (Number.isNaN(value)) {
         return;
       }
@@ -155,12 +276,14 @@ export class Timeline {
       );
     });
 
-    // Data blocks.
+    // Data groups.
     this.status.forEach((status, b) => {
-      const start = this.x(b * this.blockSize) - step / 2;
-      const end =
-        this.x(Math.min(this.times.length - 1, (b + 1) * this.blockSize - 1)) +
-        step / 2;
+      const group = this.groups[b];
+      if (!group) {
+        return;
+      }
+      const start = this.x(group.start) - step / 2;
+      const end = this.x(Math.min(this.times.length - 1, group.end)) + step / 2;
       ctx.fillStyle =
         status === "loaded"
           ? "rgba(255, 255, 255, 0.7)"

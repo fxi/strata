@@ -1,0 +1,82 @@
+{
+  "$schema": "./schema.json",
+  "schemaVersion": 1,
+  "id": "leman-lake",
+  "title": "Lake Geneva — Léman",
+  "description": "Lake Geneva every 3 hours since December 2018, surface to 310 m: water temperature, the thermocline, and the currents that move through the basin (Alplakes model, Eawag).",
+  "subtitle": "Water temperature and currents every 3 hours, surface to bed",
+  "provider": "Alplakes · Eawag Delft3D-Flow hydrodynamic model (model output, not observations)",
+  "heading": "LAKE GENEVA — LÉMAN DATA-CUBE (ALPLAKES / temperature, u, v)",
+  "credit": "Alplakes, Eawag (CC BY 4.0) · Baracchini, Wüest, Bouffard (2020), Water Research 172, 115529 · zartigl · UNEP/GRID-Geneva",
+  "data": {
+    "store": "field",
+    "scalar": { "entry": "lake-geneva-temperature", "variable": "temperature" },
+    "vector": { "entry": "lake-geneva-currents", "u": "u", "v": "v" }
+  },
+  "extent": {
+    "west": 6.14,
+    "east": 6.95,
+    "south": 46.19,
+    "north": 46.54,
+    "bottom": 310
+  },
+  "space": { "latStretch": 1.45 },
+  "time": {
+    "speeds": [
+      { "value": 1, "label": "3 h/s" },
+      { "value": 2, "label": "6 h/s" },
+      { "value": 4, "label": "12 h/s" }
+    ],
+    "speed": 1
+  },
+  "display": {
+    "domain": [4, 24],
+    "palettes": ["thermal", "turbo"],
+    "palette": "thermal",
+    "unit": "°C",
+    "iso": { "value": 10, "step": 2 },
+    "land": "clear",
+    "bed": true,
+    "cursor": { "lon": 6.62, "lat": 46.47, "depth": 100 },
+    "view": "iso",
+    "depthStep": 2,
+    "landLabel": "shore / lake bed",
+    "particles": {
+      "show": true,
+      "count": 60000,
+      "density": 0.05,
+      "fade": 0.985,
+      "flow": 1,
+      "speedMax": 0.12,
+      "idleSteps": 1
+    }
+  },
+  "facts": {
+    "dataset": "temperature, u, v (Alplakes Delft3D-Flow, 3-hourly)",
+    "grid": "≈ 390 m (0.005° × 0.0035°) · 97 z-levels",
+    "region": "≈ 390 m · Lake Geneva"
+  },
+  "panel": {
+    "title": "LAKE GENEVA",
+    "note": "From spring to autumn Léman stratifies: warm surface water over a cold hypolimnion near 5–6 °C. The 10 °C isotherm follows the thermocline; in winter the lake cools and mixes, in cold years down to the bed.",
+    "detail": "6.14° E – 6.95° E · 46.19° N – 46.54° N · 0 – 310 m"
+  },
+  "indicators": [{ "type": "cursor-series" }],
+  "state": { "show": { "iso": false, "slices": false } },
+  "overlays": [
+    { "type": "mask-outline", "label": "SHORELINE" },
+    { "type": "poi", "label": "Geneva", "lon": 6.156, "lat": 46.207 },
+    { "type": "poi", "label": "Lausanne", "lon": 6.627, "lat": 46.506 },
+    { "type": "poi", "label": "Montreux", "lon": 6.911, "lat": 46.431 },
+    { "type": "poi", "label": "Évian", "lon": 6.59, "lat": 46.401 },
+    { "type": "poi", "label": "Thonon", "lon": 6.479, "lat": 46.373 },
+    { "type": "poi", "label": "Rhône inflow", "lon": 6.86, "lat": 46.39 },
+    {
+      "type": "poi",
+      "label": "SHL2 · 309 m",
+      "lon": 6.5875,
+      "lat": 46.4525,
+      "drop": 309
+    }
+  ]
+}

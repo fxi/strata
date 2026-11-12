@@ -1,20 +1,51 @@
 # strata
 
-Pacific Thermocline Data-Cube: the monthly GODAS ocean temperature of the
-equatorial Pacific (120° E–80° W, 14.5° S–15° N, 0–300 m) since 1980 as an
-interactive 3D volume, at [`fxi.io/strata`](https://fxi.io/strata/).
+4D data cubes from the [zartigl](https://github.com/fxi/zartigl) catalog as
+interactive volumes, at [`fxi.io/strata`](https://fxi.io/strata/). Each cube
+is a **context**: a JSON file naming the catalog entries, the extent, display
+defaults, reference boxes, GeoJSON and places.
 
-- slice planes and 2D sections;
-- the 20 °C isotherm (thermocline depth) and its depth contours;
-- an anomaly mode against 1991–2020 (`pottmp_anom`);
-- a Niño 3.4 timeline with El Niño and La Niña episodes;
-- a DATA panel for the five-year blocks kept in the browser cache.
+- `/strata/` (`enso-nino-3-4`): monthly GODAS ocean temperature of the
+  equatorial Pacific (120° E–80° W, 14.5° S–15° N, 0–300 m) since 1980, the
+  20 °C isotherm, an anomaly mode against 1991–2020 and a Niño 3.4 timeline;
+- `/strata/leman-lake`: Lake Geneva every 3 hours since December 2018
+  (Alplakes, Eawag), surface to bed, with particles in the currents.
 
-`#t=YYYY-MM` opens a month; the cursors and view preset are shared in the URL.
+Across contexts:
+
+- slice planes and 2D sections, an isotherm and its depth contours;
+- particles advected on the GPU through the eastward and northward currents
+  of a vector entry, with the slices as a cut-away corner;
+- a DATA panel for the blocks of time steps kept in the browser cache;
+- VIDEO: MP4 clips (vertical, square, landscape) rendered frame by frame and
+  encoded in the browser (WebCodecs, [mediabunny](https://mediabunny.dev));
+- `#t=…` opens a time step; the cursors and view preset are shared in the URL.
+
+## Contexts
+
+`src/public/contexts/index.json` lists the prepared contexts; each one is a
+file validated against `src/context/schema.json` (served at
+`/strata/contexts/schema.json`, see `src/context/types.ts` for the fields).
+The CONTEXT button opens them, imports a file (`/strata/imported`, kept for
+the tab) and exports the current context with its view. `?config=<url>`
+opens a context file elsewhere.
+
+A context reads either a point-series store in time blocks (`"store":
+"pointSeries"`, GODAS) or a field store with one chunk per time step
+(`"store": "field"`, Alplakes). Overlays: `coastline` (Natural Earth),
+`mask-outline` (the data's surface cells), `geojson`, `box` and `poi`.
+Indicators under the timeline: `box-index` (the Niño 3.4 bars) or
+`cursor-series` (the scalar at the cursor, every step, from the
+point-series store). Particles are set in `display.particles` (`count`,
+`flow`, `speedMax`).
+
+Chunks are read and decoded in a worker; each step goes to the GPU on the
+store's own levels (one float texture per field, a static mask, and a depth
+table for uneven levels), so playback does no resampling on the CPU.
 
 ## Data
 
-strata reads its store from the GODAS entries of the
+The ENSO context reads its store from the GODAS entries of the
 [zartigl](https://github.com/fxi/zartigl) catalog (`@fxi/zartigl/catalog`):
 five-year blocks of the point-series Zarr store, about 42 MB each, read with
 zartigl's `ZarrSource` and kept across sessions by its Cache Storage chunk
